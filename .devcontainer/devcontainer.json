@@ -1,0 +1,60 @@
+{
+  // Deze map (~/agent-sandbox) wordt NIET in de container gemount.
+  // De agent kan deze configuratie dus niet aanpassen om extra mounts toe te voegen.
+  "name": "agent-sandbox",
+  "build": { "dockerfile": "Containerfile" },
+
+  // Alleen de repo's uit repos.conf (kiezen met select-repos.sh); niet ~/git als geheel en niet je home directory.
+  // ",z" = gedeelde SELinux-label (container_file_t), zodat de host en de container erbij kunnen.
+  // BEGIN repos (gegenereerd door select-repos.sh – niet met de hand aanpassen)
+  "workspaceMount": "source=${localEnv:HOME}/git/oyster3-lorawan-gps-tracker-ttn,target=/workspaces/oyster3-lorawan-gps-tracker-ttn,type=bind,z",
+  "mounts": [],
+  "workspaceFolder": "/workspaces/oyster3-lorawan-gps-tracker-ttn",
+  "containerEnv": { "AGENT_REPOS": "oyster3-lorawan-gps-tracker-ttn" },
+  // END repos
+
+  // Draait op de HOST vóór elke start/koppeling: weigert als VS Code niet via code-agent.sh (env -i) is gestart.
+  "initializeCommand": "${localWorkspaceFolder}/guard-host-env.sh",
+
+  "remoteUser": "agent",
+  "containerUser": "agent",
+  "updateRemoteUserUID": false,
+
+  // Geen --userns hier: de devcontainers CLI zet zelf --userns=keep-id (remoteUser is niet root),
+  // een tweede --userns conflicteert. Host-UID 1000 = agent-UID 1000.
+  "runArgs": [
+    "--cap-drop=ALL",
+    "--security-opt=no-new-privileges",
+    "--pids-limit=1024",
+    "--hostname=agent-sandbox"
+  ],
+
+  // Vangnet: ook als VS Code toch een agent-socket of gitconfig zou doorgeven.
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": "",
+    "DISPLAY": "",
+    "WAYLAND_DISPLAY": "",
+    "XDG_RUNTIME_DIR": "",
+    "BROWSER": "",
+    "GIT_TERMINAL_PROMPT": "0",
+    "KUBECONFIG": "/dev/null"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["GitHub.copilot-chat", "redhat.vscode-yaml"],
+      "settings": {
+        "terminal.integrated.inheritEnv": false,
+        // Geen askpass/GitHub-token via de VS Code git-extensie naar git in de terminal
+        "git.terminalAuthentication": false,
+        "github.gitAuthentication": false,
+        "chat.tools.terminal.autoApprove": {
+          "/^kustomize build\\b/": true,
+          "/^yamllint\\b/": true,
+          "/^(grep|rg|find|ls|cat|head|tail|diff)\\b/": true,
+          "/^git (status|diff|log)\\b/": true
+        }
+      }
+    }
+  }
+}

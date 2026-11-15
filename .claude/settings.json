@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.kube/**)",
+      "Read(~/.gnupg/**)",
+      "Read(~/.bashrc)",
+      "Read(~/.bash_profile)",
+      "Read(~/.git-credentials)",
+      "Read(~/.config/containers/**)",
+      "Read(~/.local/share/keyrings/**)",
+      "Edit(.claude/settings.json)",
+      "Edit(~/.claude/settings.json)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(sudo *)",
+      "Bash(oc *)",
+      "Bash(kubectl *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(podman rm *)",
+      "Bash(podman volume rm *)",
+      "Bash(podman system *)",
+      "Bash(restorecon *)",
+      "Bash(chcon *)"
+    ],
+    "ask": [
+      "Bash(podman build *)",
+      "Bash(podman run *)"
+    ],
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(podman ps *)",
+      "Bash(podman images *)",
+      "Bash(podman inspect *)",
+      "Bash(podman volume ls *)",
+      "Bash(bash -n *)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": ["~/.ssh", "~/.kube", "~/.gnupg", "~/.config/containers", "~/.local/share/keyrings"]
+    }
+  }
+}

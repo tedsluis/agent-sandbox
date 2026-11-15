@@ -1,0 +1,51 @@
+# Geïsoleerde werkomgeving voor AI-agents (VS Code Dev Container, rootless podman)
+
+# --- Stap 1: kustomize downloaden en controleren (curl blijft buiten de eindimage) ---
+FROM registry.fedoraproject.org/fedora:45 AS tools
+ARG KUSTOMIZE_VERSION=5.7.1
+RUN dnf -y install --setopt=install_weak_deps=False tar gzip && dnf clean all
+RUN set -eu; cd /tmp; \
+    base="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}"; \
+    f="kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"; \
+    curl -fsSLO "$base/$f"; curl -fsSLO "$base/checksums.txt"; \
+    grep " $f\$" checksums.txt | sha256sum -c -; \
+    tar -xzf "$f" -C /usr/local/bin kustomize; \
+    /usr/local/bin/kustomize version
+
+# --- Stap 2: de eigenlijke agent-omgeving ---
+FROM registry.fedoraproject.org/fedora-minimal:45
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+# Alleen wat de agent nodig heeft. Geen oc, kubectl, helm, ansible, ssh, sudo, curl.
+# openssl3-libs: Copilot-runtime vraagt libssl.so.3 (Fedora 45 standaard OpenSSL 4).
+RUN microdnf -y install --setopt=install_weak_deps=0 \
+        git-core grep findutils diffutils jq yamllint tar gzip shadow-utils \
+        openssl3-libs ca-certificates \
+ && microdnf clean all
+
+# Basisimage en git trekken ssh-client en curl mee; verwijderen (B-06). libcurl blijft (nodig voor microdnf).
+# Daarna faalt de build als een verboden tool nog vindbaar is.
+RUN for p in openssh-clients curl curl-minimal wget wget2-wget; do \
+      if rpm -q "$p" >/dev/null 2>&1; then echo "verwijder $p"; rpm -e --nodeps "$p"; fi; \
+    done \
+ && for t in ssh scp sftp curl wget sudo su oc kubectl helm ansible ansible-playbook vault kubeseal podman docker; do \
+      if command -v "$t" >/dev/null 2>&1; then echo "FOUT: verboden tool $t ($(command -v $t), $(rpm -qf "$(command -v $t)" 2>/dev/null))"; exit 1; fi; \
+    done
+
+COPY --from=tools /usr/local/bin/kustomize /usr/local/bin/kustomize
+
+# Gewone gebruiker zonder sudo; zelfde UID als jij op de host (zie --userns=keep-id)
+RUN groupadd -g "${USER_GID}" agent \
+ && useradd -m -u "${USER_UID}" -g "${USER_GID}" -s /bin/bash agent
+
+# Mountpunten en multi-root workspace (de repo's zelf worden gemount door devcontainer.json)
+RUN mkdir -p /workspaces \
+        /home/agent/.vscode-server-insiders/extensionsCache \
+ && chown -R agent:agent /workspaces /home/agent/.vscode-server-insiders
+COPY --chown=root:root tst.code-workspace /opt/tst.code-workspace
+# Isolatiecontrole, root-eigendom: de agent kan hem draaien maar niet aanpassen
+COPY --chown=root:root --chmod=0755 check-isolation.sh /usr/local/bin/check-isolation
+
+USER agent
+WORKDIR /workspaces

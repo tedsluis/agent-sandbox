@@ -1,0 +1,19 @@
+{
+  // Zet dit in de gebruikersinstellingen van het agent-profiel:
+  // ~/.config/Code-Insiders-agent/User/settings.json
+  // Wrapper die label=disable verwijdert (SELinux aan); zie podman-agent.sh
+  "dev.containers.dockerPath": "/home/tedsluis/agent-sandbox/podman-agent.sh",
+  "dev.containers.copyGitConfig": false,
+  "dev.containers.gitCredentialHelperConfigLocation": "none",
+  "dev.containers.dockerCredentialHelper": false,
+  "remote.SSH.enableAgentForwarding": false,
+  // Geen gedeeld cachevolume 'vscode' (wordt door al je dev containers gedeeld)
+  "dev.containers.cacheVolume": false,
+  // Geen toegang van de container tot je grafische sessie
+  "dev.containers.mountWaylandSocket": false,
+  // Copilot moet IN de container draaien, niet op de host
+  "remote.extensionKind": {
+    "GitHub.copilot-chat": ["workspace"],
+    "GitHub.copilot": ["workspace"]
+  }
+}
