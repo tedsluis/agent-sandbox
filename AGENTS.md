@@ -1,6 +1,6 @@
 # AGENTS.md – agent-sandbox
 
-Deze repo bevat de configuratie van een geïsoleerde Dev Container voor AI-agents. Je werkt hier op de **host**, niet in de sandbox: fouten hier kunnen de isolatie breken. Lees eerst `PROJECT.md` (doel, besluiten B-01…B-14, status, backlog) en `ARCHITECTURE.md` (ontwerp, isolatielagen, dreigingsmodel). `README.md` is de gebruikershandleiding.
+Deze repo bevat de configuratie van een geïsoleerde Dev Container voor AI-agents. Je werkt hier op de **host**, niet in de sandbox: fouten hier kunnen de isolatie breken. Lees eerst `PROJECT.md` (doel, besluiten B-01…B-17, status, backlog) en `ARCHITECTURE.md` (ontwerp, isolatielagen, dreigingsmodel). `README.md` is de gebruikershandleiding.
 
 ## Wat je nooit doet
 
@@ -15,7 +15,7 @@ Deze repo bevat de configuratie van een geïsoleerde Dev Container voor AI-agent
   - `.devcontainer/` en de rest van `~/agent-sandbox` blijven buiten de container-mounts;
   - `podman-agent.sh` (SELinux), `guard-host-env.sh` en de profielcontrole in `code-agent.sh` niet omzeilen of verzwakken.
 - Geen bestanden buiten `~/agent-sandbox` wijzigen. `setup-agent-profile.sh` schrijft in de agentprofielen buiten deze map: alleen de gebruiker draait dat.
-- `select-repos.sh` alleen draaien op verzoek van de gebruiker en nooit met `--force`: het schrijft `devcontainer.json`, `tst.code-workspace` en `repos.conf`. Weigertests mogen; een test die slaagt, verandert de configuratie. Het blok `// BEGIN repos … // END repos` niet met de hand aanpassen.
+- `select-repos.sh` alleen draaien op verzoek van de gebruiker en nooit met `--force` of `--stage-example`: het schrijft `devcontainer.json`, `tst.code-workspace` en `repos.conf`, en `--stage-example` wijzigt de git-index. Weigertests mogen; een test die slaagt, verandert de configuratie. Functionele tests alleen in een wegwerpkopie met een nep-`HOME` onder `/tmp`. Het blok `// BEGIN repos … // END repos` niet met de hand aanpassen. `repo-root.conf` alleen wijzigen op verzoek van de gebruiker.
 
 ## Wat je wel mag
 

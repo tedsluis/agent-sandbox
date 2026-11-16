@@ -8,9 +8,9 @@ Een afgeschermde VS Code Dev Container waarin AI-agents (GitHub Copilot) in een 
 ## In het kort
 
 ```bash
-~/agent-sandbox/code-agent.sh genai-proxy        # repo kiezen en aparte VS Code starten
+~/agent-sandbox/code-agent.sh repo-a             # repo kiezen en aparte VS Code starten
 # in VS Code: F1 → Dev Containers: Rebuild and Reopen in Container
-# in de container-terminal:
+# in de container-terminal (Terminal → New Terminal of Ctrl+Shift+`):
 check-isolation                                  # moet eindigen met "geen FOUT"
 ```
 
@@ -32,7 +32,7 @@ Richt per editie die je wilt gebruiken het profiel in (Dev Containers-extensie +
 
 Draai dit opnieuw na elke wijziging van `settings.host.json`. `code-agent.sh` weigert te starten zolang het profiel afwijkt (melding: `profiel … wijkt af van settings.host.json`). Wijzig instellingen van het agentprofiel dus in `settings.host.json`, niet in VS Code zelf.
 
-> `settings.host.json` bevat het pad `/home/tedsluis/agent-sandbox/podman-agent.sh`. Gebruik je een andere home directory, pas dat pad dan aan.
+> De sandbox moet in `~/agent-sandbox` staan (clone hem daarheen). `settings.host.json` gebruikt `${HOME}`; `setup-agent-profile.sh` vult dat in, want VS Code doet dat zelf niet voor `dev.containers.dockerPath`. De container krijgt jouw UID/GID (`code-agent.sh` geeft ze door); root wordt geweigerd.
 
 ### Editie kiezen
 
@@ -40,22 +40,30 @@ Draai dit opnieuw na elke wijziging van `settings.host.json`. `code-agent.sh` we
 echo stable   > ~/agent-sandbox/edition.conf     # standaard-editie vastleggen (of: insiders)
 ~/agent-sandbox/code-agent.sh                    # start de standaard-editie
 ~/agent-sandbox/code-agent.sh --insiders         # eenmalig de andere editie
-~/agent-sandbox/code-agent.sh --stable genai-proxy   # editie en repo's tegelijk
+~/agent-sandbox/code-agent.sh --stable repo-a        # editie en repo's tegelijk
 ```
 
 Beide edities gebruiken dezelfde container, repo-keuze en afscherming. Copilot Chat is in beide ingebouwd.
+
+### Netwerk met of zonder http-proxy
+
+Zonder proxy hoef je niets te doen. Achter een http-proxy (zonder authenticatie): zet `http_proxy`/`https_proxy`/`no_proxy` (of de hoofdletter-varianten) in de shell waaruit je `setup-agent-profile.sh` en `code-agent.sh` start. Alleen deze variabelen gaan mee door de schone omgeving; podman geeft ze door aan image-pull, build en container.
+
+Een proxy-URL met gebruikersnaam/wachtwoord (`http://user:pass@…`) wordt geweigerd: die zou in de container zichtbaar worden.
 
 ## 2. Git-repo's kiezen
 
 De container ziet **alleen** de repo's die je kiest; elke repo uit `~/git/<repo>` verschijnt als `/workspaces/<repo>`. Nooit heel `~/git`.
 
 ```bash
-~/agent-sandbox/select-repos.sh genai-proxy             # één repo
-~/agent-sandbox/select-repos.sh genai-proxy argocd      # meerdere repo's
+~/agent-sandbox/select-repos.sh repo-a                  # één repo
+~/agent-sandbox/select-repos.sh repo-a repo-b           # meerdere repo's
 ~/agent-sandbox/select-repos.sh                         # huidige keuze tonen
 ```
 
-Of in één keer met starten: `~/agent-sandbox/code-agent.sh genai-proxy argocd`.
+Of in één keer met starten: `~/agent-sandbox/code-agent.sh repo-a repo-b`.
+
+Staan je repo's niet in `~/git`? Zet de bronmap, relatief aan je home directory, in `repo-root.conf` (bijvoorbeeld `echo src/team > ~/agent-sandbox/repo-root.conf`) en kies daarna opnieuw je repo's. Absolute paden, `..` en je home directory zelf worden geweigerd.
 
 `select-repos.sh` past `.devcontainer/devcontainer.json` en `.devcontainer/tst.code-workspace` aan, schrijft de keuze naar `repos.conf` en toont de wijziging. Pas het blok tussen `// BEGIN repos` en `// END repos` niet met de hand aan.
 
@@ -83,7 +91,7 @@ Normaal bouwt VS Code de image voor je bij **Rebuild and Reopen in Container** (
 - tools: `git-core`, `kustomize` (checksum gecontroleerd), `yamllint`, `jq`, `grep`, `find`, `diff`;
 - `openssl3-libs` en `ca-certificates`, nodig voor Copilot in de container;
 - **niet** aanwezig: `ssh`, `curl`, `wget`, `sudo`, `oc`, `kubectl`, `helm`, `ansible`. De build **faalt** als een van deze toch in de image zit (bijvoorbeeld via de basisimage);
-- gebruiker `agent` (UID 1000), plus `/usr/local/bin/check-isolation`.
+- gebruiker `agent` met jouw UID/GID (standaard 1000), plus `/usr/local/bin/check-isolation`.
 
 Los bouwen om een fout in de Containerfile te zien:
 
@@ -116,7 +124,7 @@ Opnieuw bouwen is nodig na een wijziging in `.devcontainer/` (Containerfile, `de
 
 ## 5. Controleren dat de afscherming werkt
 
-In een terminal **in VS Code** binnen de container (niet via `podman exec`):
+In een terminal **in VS Code** binnen de container (niet via `podman exec`). Na het openen toont het terminalpaneel eerst het logtabblad "Dev Containers"; dat heeft geen prompt. Open een shell met **`+`** of **Ctrl+Shift+`**.
 
 ```bash
 [agent@agent-sandbox]$ check-isolation; echo "exit=$?"
@@ -129,15 +137,17 @@ OK   GIT_ASKPASS leeg
 OK   KUBECONFIG=/dev/null
 OK   geen X11/Wayland/ssh-agent/DBus-sockets
 OK   geen container-socket
-OK   mount /workspaces/oyster3-lorawan-gps-tracker-ttn
+OK   mount /workspaces/repo-a
 OK   geen andere mounts onder /workspaces
 OK   geen vscode-cachevolume
 OK   geen $HOME, ~/git of dotdirs van host gemount
+OK   bron van elke repo-mount is de repo zelf
 OK   geen capabilities
 OK   no-new-privileges
 OK   seccomp actief
 OK   SELinux container_t
-OK   uid 1000
+OK   uid 1000 (geen root)
+OK   uid 1000 is eigenaar van /workspaces/repo-a
 OK   geen verboden tools
 OK   geen credential-bestanden in $HOME
 OK   geen git credential helper (global)
@@ -147,14 +157,16 @@ WARN BROWSER gezet (URL's openen in host-browser)
 WARN VSCODE_IPC_HOOK_CLI (code-CLI naar host-UI)
 WARN REMOTE_CONTAINERS_IPC (Dev Containers-IPC naar host)
 WARN MCP-socket(s) in /tmp
-WARN internet bereikbaar (egress open)
+WARN host.containers.internal:22 bereikbaar
+WARN host.containers.internal:8080 bereikbaar
+WARN egress via proxy proxy.example:8080
 ---
 RESULTAAT: geen FOUT, wel WARN (bekende restrisico's)
 exit=0
 ```
 
 - `OK` – in orde
-- `WARN` – bekend restrisico (bijvoorbeeld internet bereikbaar, URL's openen in je host-browser); zie PROJECT.md
+- `WARN` – bekend restrisico (bijvoorbeeld URL's openen in je host-browser, internet of proxy bereikbaar, poorten op de host bereikbaar); zie PROJECT.md (B-16). Zonder proxy zie je `internet bereikbaar (egress open)` in plaats van `egress via proxy`; welke host-poorten verschijnen, hangt af van wat er op je host luistert
 - `FOUT` – de afscherming is gebroken; stop en zoek uit waarom
 
 Een intern doel meetesten (bereikbaar = `FOUT`):
@@ -179,10 +191,30 @@ podman inspect $CID --format '{{json .Mounts}}'                                 
 | `select-repos: gevoelige bestanden in <repo>` | Repo bevat mogelijk secrets | Bestanden weghalen, of bewust `--force` |
 | Build faalt op `COPY …` | Bestand ontbreekt in `.devcontainer/` | `podman build` los draaien (stap 3) en fout lezen |
 | Oude instellingen of mounts actief | "Reopen" hergebruikte bestaande container | **Rebuild and Reopen in Container** |
+| Terminal geeft geen prompt, alleen elke minuut `Extensions cache, remote removals: None` | Dat is het logtabblad "Dev Containers", geen shell | Nieuwe terminal: `+` in het terminalpaneel of Ctrl+Shift+` |
 | `profiel … wijkt af van settings.host.json` | Profiel verouderd of instelling in VS Code gewijzigd | `setup-agent-profile.sh --<editie>` |
 | `Dev Containers ontbreekt in …` | Profiel nog niet ingericht | `setup-agent-profile.sh --<editie>` |
 | Copilot toont geen modellen in de container | Image zonder `openssl3-libs` (oude build) | **Rebuild Container** |
+| `setup-agent-profile.sh`: `AggregateError [ETIMEDOUT]`, of Rebuild blijft hangen na `Resolving Remote` (`podman pull`) | Netwerk zonder directe egress en proxyvariabelen niet gezet in de shell waaruit je startte | Proxyvariabelen zetten (zie *Netwerk met of zonder http-proxy*), script opnieuw draaien; bij hangende Rebuild eerst agent-venster sluiten |
+| `deze map moet ~/agent-sandbox zijn` | Repo elders gecloned | Verplaatsen of clonen naar `~/agent-sandbox` |
+| `AGENT_UID/AGENT_GID ontbreken of wijken af` | VS Code niet (opnieuw) via `code-agent.sh` gestart, bijvoorbeeld een venster van vóór een update | Alle agent-vensters sluiten, `code-agent.sh` starten |
+| `repo-root.conf: ongeldig pad` | Absoluut pad, `..` of lege naam | Pad relatief aan je home directory, bijvoorbeeld `git` |
+| `… bevat credentials (@); niet ondersteund` | Proxy-URL met gebruikersnaam/wachtwoord | Proxy zonder authenticatie gebruiken (proxy met authenticatie wordt niet ondersteund) |
 | Build faalt met `FOUT: verboden tool …` | Basisimage bevat een verboden tool | Pakket uit de melding toevoegen aan de `rpm -e`-lijst in de Containerfile |
+
+## Wijzigingen committen
+
+Je eigen repo-keuze (`repos.conf`, het repo-blok in `devcontainer.json`, `tst.code-workspace`) hoort niet in git. In de repo staat een neutraal voorbeeld (`voorbeeld-repo`). Zet dat vóór elke commit opnieuw in de git-index; je werkkopie blijft ongewijzigd:
+
+```bash
+cd ~/agent-sandbox
+git add -A
+./select-repos.sh --stage-example     # overschrijft alleen de staged versie van de drie bestanden
+git diff --cached                     # controleren: geen eigen repo-namen of paden
+git commit
+```
+
+`git status` toont je eigen repo-keuze daarna als lokaal gewijzigd; dat is de bedoeling.
 
 ## Bestanden
 
@@ -190,8 +222,8 @@ podman inspect $CID --format '{{json .Mounts}}'                                 
 |---|---|
 | `code-agent.sh` | Start de aparte VS Code (stable/Insiders) met schone omgeving; optioneel `--stable`/`--insiders` en repo-namen |
 | `setup-agent-profile.sh`, `edition.sh`, `edition.conf` | Agentprofiel per editie inrichten, editie bepalen, standaard-editie |
-| `select-repos.sh`, `repos.conf`, `repos.deny` | Repo's kiezen, huidige keuze, altijd geweigerde repo's |
-| `settings.host.json` | Bron voor de host-instellingen van het agentprofiel |
+| `select-repos.sh`, `repos.conf`, `repos.deny`, `repo-root.conf` | Repo's kiezen, huidige keuze, altijd geweigerde repo's, optionele bronmap (standaard `~/git`) |
+| `settings.host.json` | Sjabloon (met `${HOME}`) voor de host-instellingen van het agentprofiel |
 | `podman-agent.sh` | podman-wrapper: houdt SELinux aan in de container |
 | `guard-host-env.sh` | Weigert starten vanuit een VS Code met tokens, ssh-agent of X11 |
 | `.devcontainer/` | Containerfile, `devcontainer.json`, workspace-bestand, `check-isolation.sh` |

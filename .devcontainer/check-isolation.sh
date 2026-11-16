@@ -30,13 +30,22 @@ extra=$(grep '^/workspaces' <<<"$mps" | grep -vxF -f <(printf '/workspaces/%s\n'
 grep -qx /vscode <<<"$mps" && bad "vscode-cachevolume gemount" || ok "geen vscode-cachevolume"
 src=$(awk '{print $4}' /proc/self/mountinfo | grep -E '/\.(ssh|kube|gnupg|config|local)(/|$)|^/home[0-9]*/[^/]+/?$|/git/?$' | tr '\n' ' ')
 [ -z "$src" ] && ok "geen \$HOME, ~/git of dotdirs van host gemount" || bad "gevoelige bron gemount: $src"
+# Bron van /workspaces/<repo> moet de repo-map zelf zijn, niet een bovenliggende map (ook bij andere repo-root.conf)
+wrong=$(awk '$5 ~ /^\/workspaces\// { n=split($4,a,"/"); m=split($5,b,"/"); if (a[n] != b[m]) print $4 "->" $5 }' /proc/self/mountinfo | tr '\n' ' ')
+[ -z "$wrong" ] && ok "bron van elke repo-mount is de repo zelf" || bad "repo-mount met andere bron: $wrong"
 
 # --- Rechten en SELinux
 grep -qE '^CapEff:\s*0+$' /proc/self/status && ok "geen capabilities" || bad "capabilities aanwezig"
 grep -qE '^NoNewPrivs:\s*1' /proc/self/status && ok "no-new-privileges" || bad "no-new-privileges uit"
 grep -qE '^Seccomp:\s*2' /proc/self/status && ok "seccomp actief" || bad "seccomp uit"
 grep -q ':container_t:' /proc/self/attr/current 2>/dev/null && ok "SELinux container_t" || bad "SELinux-label: $(cat /proc/self/attr/current 2>/dev/null)"
-[ "$(id -u)" = 1000 ] && ok "uid 1000" || bad "uid $(id -u)"
+u=$(id -u)
+[ "$u" != 0 ] && ok "uid $u (geen root)" || bad "uid 0 (root)"
+# B-17: agent-UID = host-UID (keep-id), dus eigenaar van de gemounte repo's
+for r in $REPOS; do
+  [ -d "/workspaces/$r" ] || continue
+  o=$(stat -c %u "/workspaces/$r"); [ "$o" = "$u" ] && ok "uid $u is eigenaar van /workspaces/$r" || bad "/workspaces/$r: eigenaar uid $o, agent uid $u"
+done
 
 # --- Tools en credentials
 found=""
@@ -65,6 +74,12 @@ ls -d /tmp/mcp-* >/dev/null 2>&1 && wrn "MCP-socket(s) in /tmp"
 for p in 22 80 443 631 5432 6443 8080 9090; do
   timeout 2 bash -c "</dev/tcp/host.containers.internal/$p" 2>/dev/null && wrn "host.containers.internal:$p bereikbaar"; done
 timeout 3 bash -c '</dev/tcp/1.1.1.1/443' 2>/dev/null && wrn "internet bereikbaar (egress open)"
+# Proxy (B-15): direct internet kan dicht zijn terwijl egress via de proxy open is.
+px=""
+for v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY; do
+  val=$(printenv "$v") || continue
+  case "$val" in *@*) bad "$v bevat credentials" ;; ?*) px="$val" ;; esac; done
+if [ -n "$px" ]; then h=${px#*://}; wrn "egress via proxy ${h%%/*}"; fi
 for hp in ${CHECK_INTERNAL:-}; do
   timeout 3 bash -c "</dev/tcp/${hp%:*}/${hp##*:}" 2>/dev/null && bad "intern doel $hp bereikbaar" || ok "intern doel $hp niet bereikbaar"; done
 

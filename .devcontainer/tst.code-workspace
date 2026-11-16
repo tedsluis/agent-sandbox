@@ -1,6 +1,7 @@
 {
   "folders": [
-    { "path": "/workspaces/oyster3-lorawan-gps-tracker-ttn" }
+    { "path": "/workspaces/genai-proxy" },
+    { "path": "/workspaces/inventory" }
   ],
   "settings": { "chat.useAgentsMdFile": true }
 }

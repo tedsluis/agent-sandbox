@@ -2,15 +2,21 @@
   // Deze map (~/agent-sandbox) wordt NIET in de container gemount.
   // De agent kan deze configuratie dus niet aanpassen om extra mounts toe te voegen.
   "name": "agent-sandbox",
-  "build": { "dockerfile": "Containerfile" },
+  "build": {
+    "dockerfile": "Containerfile",
+    // Host-UID/GID uit code-agent.sh (B-17); met keep-id is de container-UID gelijk aan de host-UID.
+    "args": { "USER_UID": "${localEnv:AGENT_UID:1000}", "USER_GID": "${localEnv:AGENT_GID:1000}" }
+  },
 
-  // Alleen de repo's uit repos.conf (kiezen met select-repos.sh); niet ~/git als geheel en niet je home directory.
+  // Alleen de repo's uit repos.conf (kiezen met select-repos.sh; bronmap uit repo-root.conf, standaard ~/git), niet de bronmap als geheel en niet je home directory.
   // ",z" = gedeelde SELinux-label (container_file_t), zodat de host en de container erbij kunnen.
   // BEGIN repos (gegenereerd door select-repos.sh – niet met de hand aanpassen)
-  "workspaceMount": "source=${localEnv:HOME}/git/oyster3-lorawan-gps-tracker-ttn,target=/workspaces/oyster3-lorawan-gps-tracker-ttn,type=bind,z",
-  "mounts": [],
-  "workspaceFolder": "/workspaces/oyster3-lorawan-gps-tracker-ttn",
-  "containerEnv": { "AGENT_REPOS": "oyster3-lorawan-gps-tracker-ttn" },
+  "workspaceMount": "source=${localEnv:HOME}/git/genai-proxy,target=/workspaces/genai-proxy,type=bind,z",
+  "mounts": [
+    "source=${localEnv:HOME}/git/inventory,target=/workspaces/inventory,type=bind,z"
+  ],
+  "workspaceFolder": "/workspaces",
+  "containerEnv": { "AGENT_REPOS": "genai-proxy inventory" },
   // END repos
 
   // Draait op de HOST vóór elke start/koppeling: weigert als VS Code niet via code-agent.sh (env -i) is gestart.
@@ -21,7 +27,7 @@
   "updateRemoteUserUID": false,
 
   // Geen --userns hier: de devcontainers CLI zet zelf --userns=keep-id (remoteUser is niet root),
-  // een tweede --userns conflicteert. Host-UID 1000 = agent-UID 1000.
+  // een tweede --userns conflicteert. Host-UID = agent-UID (build.args hierboven).
   "runArgs": [
     "--cap-drop=ALL",
     "--security-opt=no-new-privileges",

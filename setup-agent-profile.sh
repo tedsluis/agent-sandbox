@@ -7,11 +7,11 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 [ ${#ARGS[@]} -eq 0 ] || { echo "setup-agent-profile: onbekende argumenten: ${ARGS[*]}" >&2; exit 1; }
 mkdir -p "$PROFILE_DIR/User" "$EXT_DIR"
 S="$PROFILE_DIR/User/settings.json"
-if [ -f "$S" ] && ! cmp -s "$DIR/settings.host.json" "$S"; then
+if [ -f "$S" ] && ! cmp -s <(render_settings) "$S"; then
   cp -p "$S" "$S.bak-$(date +%Y%m%d%H%M%S)"; echo "oude settings.json bewaard als $S.bak-…"
 fi
-cp "$DIR/settings.host.json" "$S"
-code_agent(){ env -i HOME="$HOME" PATH=/usr/local/bin:/usr/bin:/bin "$CODE_PATH" --user-data-dir "$PROFILE_DIR" --extensions-dir "$EXT_DIR" "$@"; }
+render_settings > "$S"
+code_agent(){ env -i HOME="$HOME" PATH=/usr/local/bin:/usr/bin:/bin "${PROXY_ENV[@]}" "$CODE_PATH" --user-data-dir "$PROFILE_DIR" --extensions-dir "$EXT_DIR" "$@"; }
 code_agent --install-extension ms-vscode-remote.remote-containers
 code_agent --list-extensions --show-versions
-cmp "$DIR/settings.host.json" "$S" && echo "OK: $EDITION-profiel ingericht ($PROFILE_DIR)"
+cmp <(render_settings) "$S" && echo "OK: $EDITION-profiel ingericht ($PROFILE_DIR)"
