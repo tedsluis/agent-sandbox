@@ -81,7 +81,8 @@ Normaal bouwt VS Code de image voor je bij **Rebuild and Reopen in Container** (
 
 - basis `fedora-minimal:45`;
 - tools: `git-core`, `kustomize` (checksum gecontroleerd), `yamllint`, `jq`, `grep`, `find`, `diff`;
-- **niet** aanwezig: `ssh`, `curl`, `sudo`, `oc`, `kubectl`, `helm`, `ansible`;
+- `openssl3-libs` en `ca-certificates`, nodig voor Copilot in de container;
+- **niet** aanwezig: `ssh`, `curl`, `wget`, `sudo`, `oc`, `kubectl`, `helm`, `ansible`. De build **faalt** als een van deze toch in de image zit (bijvoorbeeld via de basisimage);
 - gebruiker `agent` (UID 1000), plus `/usr/local/bin/check-isolation`.
 
 Los bouwen om een fout in de Containerfile te zien:
@@ -103,6 +104,8 @@ Opnieuw bouwen is nodig na een wijziging in `.devcontainer/` (Containerfile, `de
    Het script start VS Code met een lege omgeving (`env -i`): geen tokens, geen ssh-agent, geen `KUBECONFIG`. Open je de map toch vanuit je gewone VS Code, dan weigert de container te starten met `agent-sandbox: … – start via ~/agent-sandbox/code-agent.sh`.
 
 2. Kies **F1 → Dev Containers: Reopen in Container**.
+
+   > **Chat pas ná deze stap.** In het venster vóór "Reopen in Container" draait Copilot nog op de host, met toegang tot je bestanden (zonder tokens of ssh-agent).
    Na een wijziging (Containerfile, repo-keuze, `devcontainer.json`): **F1 → Dev Containers: Rebuild and Reopen in Container**.
 
 3. Bij meerdere repo's: **File → Open Workspace from File… → `/opt/tst.code-workspace`**. Copilot vindt dan per repo de `AGENTS.md`.
@@ -179,6 +182,7 @@ podman inspect $CID --format '{{json .Mounts}}'                                 
 | `profiel … wijkt af van settings.host.json` | Profiel verouderd of instelling in VS Code gewijzigd | `setup-agent-profile.sh --<editie>` |
 | `Dev Containers ontbreekt in …` | Profiel nog niet ingericht | `setup-agent-profile.sh --<editie>` |
 | Copilot toont geen modellen in de container | Image zonder `openssl3-libs` (oude build) | **Rebuild Container** |
+| Build faalt met `FOUT: verboden tool …` | Basisimage bevat een verboden tool | Pakket uit de melding toevoegen aan de `rpm -e`-lijst in de Containerfile |
 
 ## Bestanden
 
@@ -191,5 +195,6 @@ podman inspect $CID --format '{{json .Mounts}}'                                 
 | `podman-agent.sh` | podman-wrapper: houdt SELinux aan in de container |
 | `guard-host-env.sh` | Weigert starten vanuit een VS Code met tokens, ssh-agent of X11 |
 | `.devcontainer/` | Containerfile, `devcontainer.json`, workspace-bestand, `check-isolation.sh` |
+| `AGENTS.md` | Regels voor AI-agents die aan déze repo werken (op de host) |
 
 Deze map wordt bewust **niet** in de container gemount, zodat de agent zijn eigen afscherming niet kan aanpassen.

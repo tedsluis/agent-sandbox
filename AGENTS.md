@@ -1,6 +1,6 @@
 # AGENTS.md – agent-sandbox
 
-Deze repo bevat de configuratie van een geïsoleerde Dev Container voor AI-agents. Je werkt hier op de **host**, niet in de sandbox: fouten hier kunnen de isolatie breken. Lees eerst `PROJECT.md` (doel, besluiten B-01…B-12, status, backlog) en `ARCHITECTURE.md` (ontwerp, isolatielagen, dreigingsmodel).
+Deze repo bevat de configuratie van een geïsoleerde Dev Container voor AI-agents. Je werkt hier op de **host**, niet in de sandbox: fouten hier kunnen de isolatie breken. Lees eerst `PROJECT.md` (doel, besluiten B-01…B-14, status, backlog) en `ARCHITECTURE.md` (ontwerp, isolatielagen, dreigingsmodel). `README.md` is de gebruikershandleiding.
 
 ## Wat je nooit doet
 
@@ -11,9 +11,11 @@ Deze repo bevat de configuratie van een geïsoleerde Dev Container voor AI-agent
   - geen mount van `$HOME`, `~/git` als geheel, `~/.kube`, `~/.ssh` of de podman-/docker-socket;
   - geen `--privileged`, extra capabilities, `label=disable`, `--network=host`;
   - geen `DISPLAY`/X11 of Wayland-socket naar de container;
-  - geen tools in de eindimage die credentials of clustertoegang gebruiken (ssh, oc, kubectl, helm, ansible, curl);
-  - `.devcontainer/` blijft buiten de container-mounts.
-- Geen bestanden buiten `~/agent-sandbox` wijzigen.
+  - geen tools in de eindimage die credentials of clustertoegang gebruiken (ssh, oc, kubectl, helm, ansible, curl, wget); de build-check in de Containerfile niet verzwakken;
+  - `.devcontainer/` en de rest van `~/agent-sandbox` blijven buiten de container-mounts;
+  - `podman-agent.sh` (SELinux), `guard-host-env.sh` en de profielcontrole in `code-agent.sh` niet omzeilen of verzwakken.
+- Geen bestanden buiten `~/agent-sandbox` wijzigen. `setup-agent-profile.sh` schrijft in de agentprofielen buiten deze map: alleen de gebruiker draait dat.
+- `select-repos.sh` alleen draaien op verzoek van de gebruiker en nooit met `--force`: het schrijft `devcontainer.json`, `tst.code-workspace` en `repos.conf`. Weigertests mogen; een test die slaagt, verandert de configuratie. Het blok `// BEGIN repos … // END repos` niet met de hand aanpassen.
 
 ## Wat je wel mag
 
@@ -25,6 +27,7 @@ Deze repo bevat de configuratie van een geïsoleerde Dev Container voor AI-agent
 
 1. Bij elke wijziging: noem de laag uit `ARCHITECTURE.md` §3 die je raakt en of het dreigingsmodel (§6) verandert.
 2. Feiten over VS Code, Dev Containers, podman of Copilot (instellingsnamen, flags) verifieer je in de officiële documentatie of in logs; markeer onbevestigde namen als `TE BEVESTIGEN`.
-3. Elke wijziging krijgt een testregel: welk podman-commando of welke logregel bewijst dat het werkt. Breid zo nodig `check-isolation.sh` uit.
+3. Elke wijziging krijgt een testregel: welk podman-commando of welke logregel bewijst dat het werkt. Breid zo nodig `.devcontainer/check-isolation.sh` uit (in de container: `check-isolation`).
 4. Werk na afloop `PROJECT.md` (status, logboek, backlog) en zo nodig `ARCHITECTURE.md` bij.
-5. Meld in chat: gewijzigde bestanden, wat de gebruiker moet uitvoeren (rebuild, kopie van `settings.host.json`) en wat nog getest moet worden.
+5. Meld in chat: gewijzigde bestanden, wat de gebruiker moet uitvoeren (Rebuild, `setup-agent-profile.sh --stable|--insiders` na wijziging van `settings.host.json`) en wat nog getest moet worden.
+6. Houd `README.md` bij als gebruik of commando's veranderen.
