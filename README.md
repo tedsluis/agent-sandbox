@@ -16,27 +16,34 @@ check-isolation                                  # moet eindigen met "geen FOUT"
 
 ## 1. Eenmalig instellen
 
-De sandbox gebruikt een **aparte** VS Code Insiders-instantie met een eigen profiel (`~/.config/Code-Insiders-agent`) en eigen extensies (`~/.vscode-insiders-agent/extensions`). Je gewone VS Code blijft ongemoeid.
+De sandbox gebruikt een **aparte** VS Code-instantie met een eigen profiel en eigen extensies. Dat kan VS Code **stable** (standaard) of **Insiders** zijn. Je gewone VS Code blijft ongemoeid.
 
-1. Installeer de Dev Containers-extensie in het agentprofiel:
+| Editie | Programma | Profiel | Extensies |
+|---|---|---|---|
+| stable (standaard) | `code` | `~/.config/Code-agent` | `~/.vscode-agent/extensions` |
+| Insiders | `code-insiders` | `~/.config/Code-Insiders-agent` | `~/.vscode-insiders-agent/extensions` |
 
-   ```bash
-   code-insiders --user-data-dir ~/.config/Code-Insiders-agent \
-                 --extensions-dir ~/.vscode-insiders-agent/extensions \
-                 --install-extension ms-vscode-remote.remote-containers
-   ```
+Richt per editie die je wilt gebruiken het profiel in (Dev Containers-extensie + host-instellingen uit `settings.host.json`):
 
-2. Zet de host-instellingen van het agentprofiel (podman-wrapper, geen credential-forwarding, geen Wayland-socket, geen gedeeld cachevolume):
+```bash
+~/agent-sandbox/setup-agent-profile.sh --stable
+~/agent-sandbox/setup-agent-profile.sh --insiders     # alleen als je ook Insiders gebruikt
+```
 
-   ```bash
-   mkdir -p ~/.config/Code-Insiders-agent/User
-   cp ~/agent-sandbox/settings.host.json ~/.config/Code-Insiders-agent/User/settings.json
-   ```
+Draai dit opnieuw na elke wijziging van `settings.host.json`. `code-agent.sh` weigert te starten zolang het profiel afwijkt (melding: `profiel … wijkt af van settings.host.json`). Wijzig instellingen van het agentprofiel dus in `settings.host.json`, niet in VS Code zelf.
 
-   Herhaal deze `cp` telkens als `settings.host.json` verandert. Controleren:
-   `diff ~/agent-sandbox/settings.host.json ~/.config/Code-Insiders-agent/User/settings.json`
+> `settings.host.json` bevat het pad `/home/tedsluis/agent-sandbox/podman-agent.sh`. Gebruik je een andere home directory, pas dat pad dan aan.
 
-   > `settings.host.json` bevat het pad `/home/tedsluis/agent-sandbox/podman-agent.sh`. Gebruik je een andere home directory, pas dat pad dan aan.
+### Editie kiezen
+
+```bash
+echo stable   > ~/agent-sandbox/edition.conf     # standaard-editie vastleggen (of: insiders)
+~/agent-sandbox/code-agent.sh                    # start de standaard-editie
+~/agent-sandbox/code-agent.sh --insiders         # eenmalig de andere editie
+~/agent-sandbox/code-agent.sh --stable genai-proxy   # editie en repo's tegelijk
+```
+
+Beide edities gebruiken dezelfde container, repo-keuze en afscherming. Copilot Chat is in beide ingebouwd.
 
 ## 2. Git-repo's kiezen
 
@@ -109,7 +116,7 @@ Opnieuw bouwen is nodig na een wijziging in `.devcontainer/` (Containerfile, `de
 In een terminal **in VS Code** binnen de container (niet via `podman exec`):
 
 ```bash
-check-isolation; echo "exit=$?"
+[agent@agent-sandbox]$ check-isolation; echo "exit=$?"
 
 OK   geen secret-achtige variabelen
 OK   SSH_AUTH_SOCK leeg
@@ -169,13 +176,16 @@ podman inspect $CID --format '{{json .Mounts}}'                                 
 | `select-repos: gevoelige bestanden in <repo>` | Repo bevat mogelijk secrets | Bestanden weghalen, of bewust `--force` |
 | Build faalt op `COPY …` | Bestand ontbreekt in `.devcontainer/` | `podman build` los draaien (stap 3) en fout lezen |
 | Oude instellingen of mounts actief | "Reopen" hergebruikte bestaande container | **Rebuild and Reopen in Container** |
-| Log toont `--docker-path podman` i.p.v. `podman-agent.sh` | Host-instellingen niet gekopieerd | Stap 1.2 opnieuw, VS Code herstarten |
+| `profiel … wijkt af van settings.host.json` | Profiel verouderd of instelling in VS Code gewijzigd | `setup-agent-profile.sh --<editie>` |
+| `Dev Containers ontbreekt in …` | Profiel nog niet ingericht | `setup-agent-profile.sh --<editie>` |
+| Copilot toont geen modellen in de container | Image zonder `openssl3-libs` (oude build) | **Rebuild Container** |
 
 ## Bestanden
 
 | Bestand | Functie |
 |---|---|
-| `code-agent.sh` | Start de aparte VS Code met schone omgeving; optioneel repo-namen |
+| `code-agent.sh` | Start de aparte VS Code (stable/Insiders) met schone omgeving; optioneel `--stable`/`--insiders` en repo-namen |
+| `setup-agent-profile.sh`, `edition.sh`, `edition.conf` | Agentprofiel per editie inrichten, editie bepalen, standaard-editie |
 | `select-repos.sh`, `repos.conf`, `repos.deny` | Repo's kiezen, huidige keuze, altijd geweigerde repo's |
 | `settings.host.json` | Bron voor de host-instellingen van het agentprofiel |
 | `podman-agent.sh` | podman-wrapper: houdt SELinux aan in de container |

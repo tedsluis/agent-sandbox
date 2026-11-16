@@ -41,8 +41,9 @@ RUN groupadd -g "${USER_GID}" agent \
 
 # Mountpunten en multi-root workspace (de repo's zelf worden gemount door devcontainer.json)
 RUN mkdir -p /workspaces \
+        /home/agent/.vscode-server/extensionsCache \
         /home/agent/.vscode-server-insiders/extensionsCache \
- && chown -R agent:agent /workspaces /home/agent/.vscode-server-insiders
+ && chown -R agent:agent /workspaces /home/agent/.vscode-server /home/agent/.vscode-server-insiders
 COPY --chown=root:root tst.code-workspace /opt/tst.code-workspace
 # Isolatiecontrole, root-eigendom: de agent kan hem draaien maar niet aanpassen
 COPY --chown=root:root --chmod=0755 check-isolation.sh /usr/local/bin/check-isolation

@@ -1,6 +1,6 @@
 {
-  // Zet dit in de gebruikersinstellingen van het agent-profiel:
-  // ~/.config/Code-Insiders-agent/User/settings.json
+  // Bron voor het agentprofiel; wordt gekopieerd door setup-agent-profile.sh naar
+  // ~/.config/Code-agent/User/settings.json (stable) of ~/.config/Code-Insiders-agent/User/settings.json (Insiders)
   // Wrapper die label=disable verwijdert (SELinux aan); zie podman-agent.sh
   "dev.containers.dockerPath": "/home/tedsluis/agent-sandbox/podman-agent.sh",
   "dev.containers.copyGitConfig": false,

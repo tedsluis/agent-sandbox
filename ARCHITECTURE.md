@@ -9,10 +9,10 @@ Fedora 45 host (gebruiker tedsluis, UID 1000)
 │   ├── GNOME Terminal: tokens in env, ssh-agent, ~/.kube, sudo
 │   └── eigen VS Code (Insiders/stable) voor normaal werk
 │
-└── code-agent.sh  ──►  aparte VS Code Insiders-instantie
+└── code-agent.sh  ──►  aparte VS Code-instantie (stable of Insiders, edition.conf)
         env -i (geen SSH_AUTH_SOCK, tokens, KUBECONFIG, DISPLAY)
-        --user-data-dir ~/.config/Code-Insiders-agent
-        --extensions-dir ~/.vscode-insiders-agent/extensions
+        --user-data-dir ~/.config/Code-agent | ~/.config/Code-Insiders-agent
+        --extensions-dir ~/.vscode-agent/extensions | ~/.vscode-insiders-agent/extensions
         --ozone-platform=wayland
         opent ~/agent-sandbox  ──►  Dev Containers-extensie
                                        │ podman (rootless)
@@ -20,7 +20,7 @@ Fedora 45 host (gebruiker tedsluis, UID 1000)
         ┌─────────────── container "agent-sandbox" ───────────────┐
         │ user agent (UID 1000 via keep-id), cap-drop=ALL,          │
         │ no-new-privileges, geen sudo/ssh/oc/kubectl/helm/curl     │
-        │ VS Code Server Insiders + Copilot Chat (extension host)   │
+        │ VS Code Server (stable/Insiders) + Copilot Chat (ext host) │
         │ tools: git-core, kustomize, yamllint, grep, find, diff, jq│
         │ /workspaces/genai-proxy  ◄── bind mount ,z (repolijst PROJECT.md) │
         │ /opt/tst.code-workspace (multi-root)                   │
@@ -37,13 +37,15 @@ UI draait op de host; alles wat code uitvoert of bestanden leest (VS Code Server
 | `.devcontainer/devcontainer.json` | Mounts, runArgs, remoteEnv, `initializeCommand`, extensies, container-settings. |
 | `.devcontainer/tst.code-workspace` | Multi-root workspace met de repo's uit `repos.conf` (nu `genai-proxy`; gegenereerd door `select-repos.sh`); `chat.useAgentsMdFile: true`. Wordt in de image gekopieerd. |
 | `README.md` | Gebruikershandleiding: repo's kiezen, image bouwen, Dev Container gebruiken, controleren. |
-| `code-agent.sh` | Start de aparte VS Code-instantie met schone omgeving. `CODE_BIN` standaard `code-insiders`. |
+| `code-agent.sh` | Start de aparte VS Code-instantie met schone omgeving. Editie via `--stable`/`--insiders` of `edition.conf` (standaard stable). Weigert te starten als het profiel afwijkt van `settings.host.json` of Dev Containers ontbreekt. |
+| `edition.sh`, `edition.conf` | Bepaalt editie, programma, profiel- en extensiemap; standaard-editie. |
+| `setup-agent-profile.sh` | Richt het agentprofiel per editie in: kopieert `settings.host.json`, installeert Dev Containers. |
 | `podman-agent.sh` | `dev.containers.dockerPath`-wrapper: verwijdert `--security-opt label=disable` (door devcontainers CLI ≥ 0.80 altijd toegevoegd) bij `podman run/create`. |
 | `guard-host-env.sh` | `initializeCommand` op de host: breekt af als `SSH_AUTH_SOCK`, een X11-`DISPLAY` (met `:`; VS Code zet zelf dummy `DISPLAY=1`), `KUBECONFIG` of secret-achtige variabelen in de omgeving van VS Code staan. |
 | `select-repos.sh` | Kiest de repo's (validatie + scan op secrets), genereert repo-blok in `devcontainer.json` en `tst.code-workspace`, schrijft `repos.conf`. |
 | `repos.conf` | Huidige repo-keuze (gegenereerd). |
 | `repos.deny` | Repo's die `select-repos.sh` altijd weigert (nu leeg). |
-| `settings.host.json` | Bron voor `~/.config/Code-Insiders-agent/User/settings.json` (host-side instellingen van het agentprofiel). |
+| `settings.host.json` | Bron voor `User/settings.json` van het agentprofiel (stable: `~/.config/Code-agent`, Insiders: `~/.config/Code-Insiders-agent`); gekopieerd door `setup-agent-profile.sh`. |
 | `.devcontainer/check-isolation.sh` | Controle binnen de container; in de image als `/usr/local/bin/check-isolation` (root-eigendom). Niveaus OK/WARN/FOUT; exitcode 1 bij FOUT. `REPOS` (standaard `AGENT_REPOS` uit `containerEnv`) en optioneel `CHECK_INTERNAL="host:poort …"`. |
 | `.claude/settings.json` | Rechten en sandbox voor Claude Code op de host bij werk aan deze repo. |
 
@@ -124,7 +126,8 @@ Na openen: **File → Open Workspace from File… → `/opt/tst.code-workspace`*
 |---|---|
 | Fedora (host) | 45 (kernel in log: 7.3.3-300.fc45) |
 | podman / buildah | 6.1.4 / 1.45.2 |
-| VS Code Insiders | 1.147.0-insider (commit d8e7b56c) |
+| VS Code stable | 1.146.0 (commit 69047191), Copilot Chat 0.74.0 ingebouwd |
+| VS Code Insiders | 1.147.0-insider (commit d8e7b56c), Copilot Chat 0.75.2026111203 ingebouwd |
 | Dev Containers-extensie | 0.474.0 (devcontainers CLI 0.90.0) |
 | Base images | `registry.fedoraproject.org/fedora:45`, `fedora-minimal:45` |
 | kustomize | 5.7.1 |
@@ -132,7 +135,7 @@ Na openen: **File → Open Workspace from File… → `/opt/tst.code-workspace`*
 
 ## 8. Werkwijze dagelijks
 
-1. `~/agent-sandbox/code-agent.sh` (andere repo's: `code-agent.sh <repo> [<repo> …]`)
+1. `~/agent-sandbox/code-agent.sh` (andere repo's: `code-agent.sh <repo> [<repo> …]`; andere editie: `--stable`/`--insiders`)
 2. **Reopen in Container** (na wijziging Containerfile/devcontainer.json of andere repo-keuze: **Rebuild and Reopen**).
 3. Open `/opt/tst.code-workspace`.
 4. Agent werkt en valideert in de container.

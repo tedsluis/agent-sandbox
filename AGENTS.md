@@ -18,7 +18,7 @@ Deze repo bevat de configuratie van een geïsoleerde Dev Container voor AI-agent
 ## Wat je wel mag
 
 - Bestanden in deze repo lezen en wijzigen, na een voorgestelde diff.
-- Lezend: `cat`, `grep`, `find`, `diff`, `jq`, `bash -n`, `git status/diff/log`, `kustomize build` `podman images`, `podman ps -a`, `podman inspect`, `podman volume ls`, `code-insiders --list-extensions`, `yamllint` met de agentprofiel-directories.
+- Lezend: `cat`, `grep`, `find`, `diff`, `jq`, `bash -n`, `git status/diff/log`, `kustomize build` `podman images`, `podman ps -a`, `podman inspect`, `podman volume ls`, `code --list-extensions`, `code-insiders --list-extensions`, `yamllint` met de agentprofiel-directories.
 - JSON(C) valideren (commentaar `//` toegestaan in `devcontainer.json` en `settings.host.json`).
 
 ## Werkwijze

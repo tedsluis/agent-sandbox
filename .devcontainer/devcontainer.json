@@ -42,7 +42,8 @@
 
   "customizations": {
     "vscode": {
-      "extensions": ["GitHub.copilot-chat", "redhat.vscode-yaml"],
+      // Copilot Chat is ingebouwd in stable (0.74) en Insiders (0.75); niet van de Marketplace installeren (gaf 0.48.1)
+      "extensions": ["redhat.vscode-yaml"],
       "settings": {
         "terminal.integrated.inheritEnv": false,
         // Geen askpass/GitHub-token via de VS Code git-extensie naar git in de terminal

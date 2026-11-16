@@ -10,7 +10,7 @@ Begrenzing gebeurt technisch (container, mounts, ontbrekende tools en credential
 
 - Werkplek: Fedora 45, gebruiker `tedsluis` (UID/GID 1000), GNOME op Wayland.
 - Rol: platform-DevOps-engineer Linux/OpenShift. Werkt aan talloze projecten, (zie `~/git/`).
-- Editor: VS Code **Insiders** (`code-insiders`, 1.146.0-insider bij de laatste test).
+- Editor: VS Code **stable** (`code`, 1.146.0) en **Insiders** (`code-insiders`, 1.147.0-insider); sandbox standaard stable (B-11).
 - Agents: GitHub Copilot Chat (ingebouwd in Insiders). Claude in VS Code wordt gebruikt om deze sandbox verder te ontwikkelen.
 
 ### Wat de agent NIET mag kunnen bereiken
@@ -62,7 +62,7 @@ Overwogen alternatieven:
 | B-08 | SELinux-label met `,z` (gedeeld), niet `,Z`; SELinux-scheiding aan via `podman-agent.sh`, dat het door de CLI toegevoegde `label=disable` verwijdert. | `,Z` faalde op een bestand van een andere gebruiker in `~/git/keep`; `,z` laat host en container erbij. Zonder wrapper draait de container zonder SELinux-scheiding. |
 | B-09 | VS Code native op Wayland (`--ozone-platform=wayland`), geen `DISPLAY`; Wayland-socket niet mounten. | X11-forwarding gaf de container toegang tot de grafische sessie van de host. |
 | B-10 | Geen gedeeld cachevolume `vscode` (`dev.containers.cacheVolume: false`). | Gedeeld door alle dev containers; schrijfbaar volume = mogelijk de VS Code Server van andere containers aanpassen. Veroorzaakte ook de `extensionsCache: Not a directory`-fout. |
-| B-11 | VS Code Insiders voor de sandbox. | Nieuwe agentfuncties eerder beschikbaar; risico op breuk geaccepteerd. |
+| B-11 | VS Code **stable én Insiders** voor de sandbox, gekozen met `edition.conf` of `--stable`/`--insiders`; standaard stable (gewijzigd 2026-11-16, was: alleen Insiders). | Stable is stabieler voor dagelijks werk; Insiders blijft beschikbaar voor nieuwe agentfuncties. Beide hebben Copilot Chat ingebouwd. |
 | B-12 | Agent commit/pusht niet; de gebruiker reviewt en pusht vanuit een eigen terminal. | Geen push-credentials in de container. |
 | B-13 | `initializeCommand` (`guard-host-env.sh`) weigert start/koppeling als de VS Code-instantie `SSH_AUTH_SOCK`, `DISPLAY`, `KUBECONFIG` of secret-achtige variabelen heeft. | Elke VS Code-instantie die `~/agent-sandbox` opent hergebruikt de container; audit 2026-11-15 vond ssh-agent- en X11-forwarding uit een instantie zonder `env -i`. |
 
@@ -74,12 +74,12 @@ Overwogen alternatieven:
 | `podman run` met keep-id en `,z`-mount | ✅ container `4735d3a4c69e`: `uid=1000(agent)`, `uid_map` 1000→1000 (keep-id via CLI; inspect toont `UsernsMode: private`); `~/git/genai-proxy` gelabeld `container_file_t:s0` |
 | Container start via Dev Containers, VS Code Server draait | ✅ `4735d3a4c69e` gestart via `code-agent.sh` + Rebuild (2026-11-15 14:40) |
 | Geen ssh-agent, geen git credential helper, geen ssh/gpg in container | ✅ VS Code-terminal: `SSH_AUTH_SOCK`/`GIT_ASKPASS` leeg, geen `/tmp/vscode-ssh-auth-*`, geen `~/.gitconfig`, `check-isolation.sh` OK. Restkanalen `VSCODE_GIT_IPC_HANDLE`, `REMOTE_CONTAINERS_IPC` aanwezig (backlog 19) |
-| Copilot Chat draait in de container | ❌ geen modellen in container (2026-11-15): Copilot-runtime mist `libssl.so.3` (Fedora 45 = OpenSSL 4); `openssl3-libs` + `ca-certificates` toegevoegd, rebuild nodig. Daarnaast installeert `devcontainer.json` Marketplace-versie 0.48.1 i.p.v. ingebouwde 0.75.x (onderzoek loopt) |
+| Copilot Chat draait in de container | ⏳ `openssl3-libs` toegevoegd (libssl.so.3 voor Copilot-runtime); Marketplace-installatie van `GitHub.copilot-chat` (0.48.1) verwijderd, ingebouwde versie wordt gebruikt (stable 0.74.0, Insiders 0.75.x). Rebuild en modellenlijst nog toetsen |
 | Repo-mounts (nu alleen `genai-proxy`) | ✅ inspect: één bind-mount `~/git/genai-proxy → /workspaces/genai-proxy`; `ls /workspaces` toont alleen `genai-proxy` |
 | Repo's wisselen (`select-repos.sh`) | ✅ host-tests 2026-11-15: weigert `../x`, niet-bestaand, geen git-repo, treffers in `reg` (`*.pem`) en `Cachet` (`.env`); `genai-proxy` geeft identieke `devcontainer.json`; twee repo's genereren geldige JSON. Rebuild met `oyster3-lorawan-gps-tracker-ttn` OK (inspect + `check-isolation`) |
 | X11/Wayland-forwarding uit | ✅ geen Wayland-mount (inspect), geen `/tmp/.X11-unix` en `/tmp/vscode-wayland-*`; Dev Containers-log nog nalopen op `X11 forwarding` |
 | Geen cachevolume `vscode` | ✅ niet gemount in `4735d3a4c69e`; volume blijft bestaan voor `zealous_hamilton` (niet verwijderen) |
-| Host-settings agentprofiel gelijk aan `settings.host.json` | ✅ log toont `--docker-path /home/tedsluis/agent-sandbox/podman-agent.sh` |
+| Host-settings agentprofiel gelijk aan `settings.host.json` | ⏳ `code-agent.sh` controleert dit nu bij elke start; `setup-agent-profile.sh --stable` en `--insiders` nog draaien (beide profielen wijken af na commentaarwijziging 2026-11-16; stable-profiel was verouderd) |
 | `extensionsCache`-fout opgelost | ✅ `/home/agent/.vscode-server-insiders/extensionsCache` is een map; VS Code Server draait |
 | Multi-root workspace `/opt/tst.code-workspace` | ⏳ in image gekopieerd; openen in VS Code nog toetsen |
 | SELinux-scheiding container | ✅ `ProcessLabel` `container_t:s0:c860,c1023`, `SecurityOpt` alleen `no-new-privileges` (geen `label=disable`) |
@@ -136,4 +136,6 @@ Overwogen alternatieven:
 | 2026-11-15 | Repo's wisselen vereiste handwerk in `devcontainer.json` | Mounts liggen vast bij aanmaken container | `select-repos.sh` + `repos.conf`/`repos.deny`, markeringen in `devcontainer.json`, `AGENT_REPOS` voor `check-isolation`; `code-agent.sh` accepteert repo-namen |
 | 2026-11-15 | `check-isolation`: `FOUT verboden tools: curl` | `curl` zit in basisimage `fedora-minimal:45`; Containerfile installeerde het niet maar verwijderde het ook niet; oude check testte niet op curl | Containerfile verwijdert `curl`/`curl-minimal`/`wget`/`openssh-clients` en faalt bij elke verboden tool (B-06) |
 | 2026-11-15 | Copilot toont geen modellen in de container, wel lokaal | Copilot-runtime in container: `invalid proxy TLS configuration … install libssl.so.3`; `fedora-minimal:45` heeft alleen OpenSSL 4, host heeft `openssl3-libs` | `openssl3-libs` en `ca-certificates` in Containerfile |
-| 2026-11-15 | `devcontainer.json` installeert `github.copilot-chat` 0.48.1 van Marketplace | Extensie expliciet in `customizations.vscode.extensions`, terwijl Insiders 0.75.x ingebouwd heeft | Onderzoek: welke versie draait in container; mogelijk regel weghalen |
+| 2026-11-15 | `devcontainer.json` installeert `github.copilot-chat` 0.48.1 van Marketplace | Extensie expliciet in `customizations.vscode.extensions`, terwijl stable (0.74.0) en Insiders (0.75.x) hem ingebouwd hebben | Regel verwijderd (2026-11-16) |
+| 2026-11-16 | Sandbox alleen voor Insiders; oud stable-profiel `~/.config/Code-agent` had verouderde instellingen (geen wrapper, geen `cacheVolume`/`mountWaylandSocket: false`) | Paden vast in `code-agent.sh` | `edition.sh`/`edition.conf`, `setup-agent-profile.sh`; `code-agent.sh` weigert bij afwijkend profiel; B-11 gewijzigd |
+| 2026-11-16 | Test `select-repos.sh Cachet --force` schreef per ongeluk `Cachet` in de configuratie | Testfout van de agent | Direct teruggezet op `oyster3-lorawan-gps-tracker-ttn`; geen container gestart. `--force` werkt nu op elke positie |

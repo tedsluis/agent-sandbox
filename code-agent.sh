@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
-# Start een APARTE VS Code-instantie voor agentwerk, met een schone omgeving:
-# geen SSH-agent, geen tokens, geen KUBECONFIG, geen X11 (DISPLAY) voor de container. Je normale VS Code en terminals blijven ongemoeid.
+# Start een APARTE VS Code-instantie (stable of Insiders) voor agentwerk, met een schone omgeving:
+# geen SSH-agent, geen tokens, geen KUBECONFIG, geen X11 (DISPLAY). Je normale VS Code en terminals blijven ongemoeid.
+# Gebruik: code-agent.sh [--stable|--insiders] [--force] [repo ...]   (editie standaard uit edition.conf)
 set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$DIR/edition.sh"
 
-# code-insiders of code; overschrijfbaar: CODE_BIN=code ./code-agent.sh
-CODE_BIN="${CODE_BIN:-code-insiders}"
-CODE_PATH="$(command -v "$CODE_BIN")"
-
-# Optioneel: code-agent.sh [--force] repo [repo ...] → eerst repo-keuze vastleggen (zie select-repos.sh)
-if [ $# -gt 0 ]; then
-  "$(cd "$(dirname "$0")" && pwd)/select-repos.sh" "$@"
-  echo "Kies na het openen: F1 → Dev Containers: Rebuild and Reopen in Container"
+# Niet starten met een profiel dat afwijkt van settings.host.json (bijv. zonder podman-wrapper of met Wayland-socket)
+if ! cmp -s "$DIR/settings.host.json" "$PROFILE_DIR/User/settings.json"; then
+  echo "agent-sandbox: profiel $PROFILE_DIR wijkt af van settings.host.json – draai: $DIR/setup-agent-profile.sh --$EDITION" >&2; exit 1
+fi
+if ! ls -d "$EXT_DIR"/ms-vscode-remote.remote-containers-* >/dev/null 2>&1; then
+  echo "agent-sandbox: Dev Containers ontbreekt in $EXT_DIR – draai: $DIR/setup-agent-profile.sh --$EDITION" >&2; exit 1
 fi
 
+if [ ${#ARGS[@]} -gt 0 ]; then
+  "$DIR/select-repos.sh" "${ARGS[@]}"
+  echo "Kies na het openen: F1 → Dev Containers: Rebuild and Reopen in Container"
+fi
+echo "agent-sandbox: start VS Code $EDITION ($CODE_BIN)"
 exec env -i \
   HOME="$HOME" USER="$USER" LOGNAME="$USER" LANG="${LANG:-C.UTF-8}" \
   PATH="/usr/local/bin:/usr/bin:/bin" \
@@ -21,6 +27,6 @@ exec env -i \
   DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
   XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-}" \
   "$CODE_PATH" --new-window --ozone-platform=wayland \
-       --user-data-dir "$HOME/.config/Code-Insiders-agent" \
-       --extensions-dir "$HOME/.vscode-insiders-agent/extensions" \
-       "$HOME/agent-sandbox"
+       --user-data-dir "$PROFILE_DIR" \
+       --extensions-dir "$EXT_DIR" \
+       "$DIR"

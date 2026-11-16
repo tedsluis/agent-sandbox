@@ -9,7 +9,9 @@ GIT="$HOME/git"
 CONF="$DIR/repos.conf"; DENY="$DIR/repos.deny"
 DC="$DIR/.devcontainer/devcontainer.json"; WS="$DIR/.devcontainer/tst.code-workspace"
 die(){ echo "select-repos: $*" >&2; exit 1; }
-force=0; [ "${1:-}" = --force ] && { force=1; shift; }
+force=0; args=()
+for a in "$@"; do if [ "$a" = --force ]; then force=1; else args+=("$a"); fi; done
+set -- "${args[@]+"${args[@]}"}"
 if [ $# -eq 0 ]; then
   echo "Huidige repo's (repos.conf):"; grep -v '^[[:space:]]*#' "$CONF" 2>/dev/null | sed 's/^/  /'; exit 0
 fi
