@@ -65,7 +65,9 @@ Of in één keer met starten: `~/agent-sandbox/code-agent.sh repo-a repo-b`.
 
 Staan je repo's niet in `~/git`? Zet de bronmap, relatief aan je home directory, in `repo-root.conf` (bijvoorbeeld `echo src/team > ~/agent-sandbox/repo-root.conf`) en kies daarna opnieuw je repo's. Absolute paden, `..` en je home directory zelf worden geweigerd.
 
-`select-repos.sh` past `.devcontainer/devcontainer.json` en `.devcontainer/tst.code-workspace` aan, schrijft de keuze naar `repos.conf` en toont de wijziging. Pas het blok tussen `// BEGIN repos` en `// END repos` niet met de hand aan.
+`select-repos.sh` maakt uit het sjabloon `.devcontainer/devcontainer.template.jsonc` de lokale bestanden `.devcontainer/devcontainer.json`, `.devcontainer/tst.code-workspace` en `repos.conf`, en toont de wijziging. Die drie staan niet in git (`.gitignore`). `code-agent.sh` genereert `devcontainer.json` bij elke start opnieuw; wijzigingen aan de configuratie doe je dus in het **sjabloon**.
+
+Na een verse `git clone` kies je eerst je repo's (`select-repos.sh <repo>` of `code-agent.sh <repo>`); zonder keuze start `code-agent.sh` niet.
 
 Het script **weigert** een repo als:
 
@@ -189,7 +191,8 @@ podman inspect $CID --format '{{json .Mounts}}'                                 
 |---|---|---|
 | `agent-sandbox: … is gezet – start via ~/agent-sandbox/code-agent.sh` | VS Code niet via `code-agent.sh` gestart | Alle agent-vensters sluiten, `code-agent.sh` starten |
 | `select-repos: gevoelige bestanden in <repo>` | Repo bevat mogelijk secrets | Bestanden weghalen, of bewust `--force` |
-| Build faalt op `COPY …` | Bestand ontbreekt in `.devcontainer/` | `podman build` los draaien (stap 3) en fout lezen |
+| Build faalt op `COPY …` | Bestand ontbreekt in `.devcontainer/` (bijv. `tst.code-workspace` na een verse clone) | Eerst `select-repos.sh <repo>`; anders `podman build` los draaien (stap 3) en fout lezen |
+| `nog geen repo's gekozen` | Verse clone of `repos.conf` verwijderd | `select-repos.sh <repo>` of `code-agent.sh <repo>` |
 | Oude instellingen of mounts actief | "Reopen" hergebruikte bestaande container | **Rebuild and Reopen in Container** |
 | Terminal geeft geen prompt, alleen elke minuut `Extensions cache, remote removals: None` | Dat is het logtabblad "Dev Containers", geen shell | Nieuwe terminal: `+` in het terminalpaneel of Ctrl+Shift+` |
 | `profiel … wijkt af van settings.host.json` | Profiel verouderd of instelling in VS Code gewijzigd | `setup-agent-profile.sh --<editie>` |
@@ -204,25 +207,21 @@ podman inspect $CID --format '{{json .Mounts}}'                                 
 
 ## Wijzigingen committen
 
-Je eigen repo-keuze (`repos.conf`, het repo-blok in `devcontainer.json`, `tst.code-workspace`) hoort niet in git. In de repo staat een neutraal voorbeeld (`voorbeeld-repo`); `repo-root.conf` staat in `.gitignore`.
+Je eigen repo-keuze staat alleen lokaal (`repos.conf`, `.devcontainer/devcontainer.json`, `.devcontainer/tst.code-workspace`, en eventueel `repo-root.conf`); die bestanden staan in `.gitignore`, dus `git status` blijft schoon. In git staat alleen het sjabloon met `voorbeeld-repo`.
 
-Zet eenmalig per clone de pre-commit hook aan. Die weigert een commit met een eigen repo-keuze, `repo-root.conf` of je home-pad:
+Zet eenmalig per clone de pre-commit hook aan. Die weigert een commit met een van de lokale bestanden, een sjabloon zonder `voorbeeld-repo` of je home-pad:
 
 ```bash
 git -C ~/agent-sandbox config core.hooksPath .githooks
 ```
 
-Zet vóór elke commit het voorbeeld opnieuw in de git-index; je werkkopie blijft ongewijzigd:
+Daarna commit je gewoon:
 
 ```bash
 cd ~/agent-sandbox
-git add -A
-./select-repos.sh --stage-example     # overschrijft alleen de staged versie van de drie bestanden
-git diff --cached                     # controleren: geen eigen repo-namen of paden
+git add -A && git diff --cached     # controleren
 git commit
 ```
-
-`git status` toont je eigen repo-keuze daarna als lokaal gewijzigd; dat is de bedoeling.
 
 ## Bestanden
 
@@ -230,12 +229,13 @@ git commit
 |---|---|
 | `code-agent.sh` | Start de aparte VS Code (stable/Insiders) met schone omgeving; optioneel `--stable`/`--insiders` en repo-namen |
 | `setup-agent-profile.sh`, `edition.sh`, `edition.conf` | Agentprofiel per editie inrichten, editie bepalen, standaard-editie |
-| `select-repos.sh`, `repos.conf`, `repos.deny`, `repo-root.conf` | Repo's kiezen, huidige keuze, altijd geweigerde repo's, optionele bronmap (standaard `~/git`) |
+| `select-repos.sh`, `repos.conf`, `repos.deny`, `repo-root.conf` | Repo's kiezen, huidige keuze (lokaal), altijd geweigerde repo's, optionele bronmap (standaard `~/git`, lokaal) |
+| `.devcontainer/devcontainer.template.jsonc` | Sjabloon van de Dev Container-configuratie (in git); `devcontainer.json` wordt eruit gegenereerd |
 | `settings.host.json` | Sjabloon (met `${HOME}`) voor de host-instellingen van het agentprofiel |
 | `podman-agent.sh` | podman-wrapper: houdt SELinux aan in de container |
 | `guard-host-env.sh` | Weigert starten vanuit een VS Code met tokens, ssh-agent of X11 |
-| `.devcontainer/` | Containerfile, `devcontainer.json`, workspace-bestand, `check-isolation.sh` |
+| `.devcontainer/` | Containerfile, sjabloon, gegenereerde `devcontainer.json` en workspace-bestand, `check-isolation.sh` |
 | `AGENTS.md` | Regels voor AI-agents die aan déze repo werken (op de host) |
-| `.githooks/pre-commit`, `.gitignore` | Houden je repo-keuze, `repo-root.conf` en home-pad uit git |
+| `.githooks/pre-commit`, `.gitignore` | Houden je lokale repo-keuze, `repo-root.conf` en home-pad uit git |
 
 Deze map wordt bewust **niet** in de container gemount, zodat de agent zijn eigen afscherming niet kan aanpassen.

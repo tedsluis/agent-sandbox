@@ -1,4 +1,5 @@
 {
+  // @@GENERATED-NOTICE@@ SJABLOON (in git): select-repos.sh en code-agent.sh maken hieruit de lokale devcontainer.json. Wijzig de configuratie hier.
   // Deze map (~/agent-sandbox) wordt NIET in de container gemount.
   // De agent kan deze configuratie dus niet aanpassen om extra mounts toe te voegen.
   "name": "agent-sandbox",
@@ -10,7 +11,7 @@
 
   // Alleen de repo's uit repos.conf (kiezen met select-repos.sh; bronmap uit repo-root.conf, standaard ~/git), niet de bronmap als geheel en niet je home directory.
   // ",z" = gedeelde SELinux-label (container_file_t), zodat de host en de container erbij kunnen.
-  // BEGIN repos (gegenereerd door select-repos.sh – niet met de hand aanpassen)
+  // BEGIN repos (voorbeeld; select-repos.sh vult dit blok uit repos.conf)
   "workspaceMount": "source=${localEnv:HOME}/git/voorbeeld-repo,target=/workspaces/voorbeeld-repo,type=bind,z",
   "mounts": [],
   "workspaceFolder": "/workspaces/voorbeeld-repo",

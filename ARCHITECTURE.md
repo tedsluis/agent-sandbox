@@ -36,23 +36,24 @@ UI draait op de host; alles wat code uitvoert of bestanden leest (VS Code Server
 | Bestand (in `~/agent-sandbox/`) | Functie |
 |---|---|
 | `.devcontainer/Containerfile` | Multi-stage image. Stage `tools` (`fedora:45`): kustomize downloaden en tegen `checksums.txt` controleren. Eindstage (`fedora-minimal:45`): `git-core grep findutils diffutils jq yamllint tar gzip shadow-utils openssl3-libs ca-certificates` (`openssl3-libs`: Copilot-runtime vraagt `libssl.so.3`, Fedora 45 heeft standaard OpenSSL 4); `openssh-clients`, `curl`, `curl-minimal`, `wget` met `rpm -e --nodeps` verwijderd en **build faalt** als een verboden tool nog vindbaar is (als afhankelijkheid komen wel `python3` (van `yamllint`) en `openssh` zonder client mee); gebruiker `agent` met de UID/GID van de host (build-args `USER_UID`/`USER_GID` uit `AGENT_UID`/`AGENT_GID`, standaard 1000; B-17); `/workspaces` en `extensionsCache` voor `.vscode-server` en `.vscode-server-insiders`; workspacebestand naar `/opt`, `check-isolation` naar `/usr/local/bin`. |
-| `.devcontainer/devcontainer.json` | Repo-blok (gegenereerd), runArgs, remoteEnv, `initializeCommand`, extensies (alleen `redhat.vscode-yaml`; Copilot Chat is ingebouwd), container-settings. |
-| `.devcontainer/tst.code-workspace` | Multi-root workspace met de repo's uit `repos.conf` (gegenereerd door `select-repos.sh`); `chat.useAgentsMdFile: true`. Wordt in de image gekopieerd. |
+| `.devcontainer/devcontainer.template.jsonc` | **Sjabloon in git**: runArgs, remoteEnv, `initializeCommand`, extensies (alleen `redhat.vscode-yaml`; Copilot Chat is ingebouwd), container-settings; repo-blok met `voorbeeld-repo`. Configuratiewijzigingen gaan hier. |
+| `.devcontainer/devcontainer.json` | **Lokaal gegenereerd, niet in git** (`.gitignore`): sjabloon met het repo-blok uit `repos.conf`. `code-agent.sh` herstelt het bij elke start (`select-repos.sh --regenerate`); handmatige of door een agent gemaakte wijzigingen gaan verloren. |
+| `.devcontainer/tst.code-workspace` | Lokaal gegenereerd (niet in git): multi-root workspace met de repo's uit `repos.conf`; `chat.useAgentsMdFile: true`. Wordt in de image gekopieerd. |
 | `README.md` | Gebruikershandleiding: repo's kiezen, image bouwen, Dev Container gebruiken, controleren. |
 | `code-agent.sh` | Start de aparte VS Code-instantie met schone omgeving. Editie via `--stable`/`--insiders` of `edition.conf` (standaard stable). Weigert te starten als het profiel afwijkt van `settings.host.json` of Dev Containers ontbreekt. |
 | `edition.sh`, `edition.conf` | Bepaalt editie, programma, profiel- en extensiemap; standaard-editie. Weigert als de map niet `~/agent-sandbox` is; `render_settings` vult `${HOME}` in `settings.host.json` in (B-17). Zet ook `PROXY_ENV`: de proxyvariabelen die door `env -i` mogen (B-15), weigert proxy-URL's met credentials. |
 | `setup-agent-profile.sh` | Richt het agentprofiel per editie in: schrijft `settings.host.json` met ingevuld `${HOME}` (`render_settings`), installeert Dev Containers. |
 | `podman-agent.sh` | `dev.containers.dockerPath`-wrapper: verwijdert `--security-opt label=disable` (door devcontainers CLI ≥ 0.80 altijd toegevoegd) bij `podman run/create`. |
 | `guard-host-env.sh` | `initializeCommand` op de host: breekt af als `AGENT_UID`/`AGENT_GID` ontbreken of afwijken van `id -u`/`id -g` (B-17), of als `SSH_AUTH_SOCK`, een X11-`DISPLAY` (met `:`; VS Code zet zelf dummy `DISPLAY=1`), `KUBECONFIG` of secret-achtige variabelen in de omgeving van VS Code staan. |
-| `select-repos.sh` | Kiest de repo's uit de bronmap (validatie + scan op secrets), genereert repo-blok in `devcontainer.json` en `tst.code-workspace`, schrijft `repos.conf`. `--stage-example` zet neutrale voorbeeldwaarden (`voorbeeld-repo`) in de git-index zonder de werkkopie te wijzigen (B-17). |
+| `select-repos.sh` | Kiest de repo's uit de bronmap (validatie + scan op secrets) en genereert uit het sjabloon `devcontainer.json`, `tst.code-workspace` en `repos.conf` (alle drie lokaal, B-17). `--regenerate` genereert opnieuw uit sjabloon + bestaande `repos.conf` (zonder secrets-scan) en schrijft alleen bij een verschil. |
 | `repo-root.conf` | Optioneel: bronmap van de repo's, relatief aan `$HOME` (standaard `git`). Niet `$HOME` zelf, geen `..` of absolute paden. |
-| `repos.conf` | Huidige repo-keuze (gegenereerd). |
+| `repos.conf` | Huidige repo-keuze (lokaal gegenereerd, niet in git). |
 | `repos.deny` | Repo's die `select-repos.sh` altijd weigert (nu leeg). |
 | `settings.host.json` | Sjabloon (met `${HOME}`) voor `User/settings.json` van het agentprofiel (stable: `~/.config/Code-agent`, Insiders: `~/.config/Code-Insiders-agent`); gekopieerd door `setup-agent-profile.sh`. |
 | `.devcontainer/check-isolation.sh` | Controle binnen de container; in de image als `/usr/local/bin/check-isolation` (root-eigendom). Niveaus OK/WARN/FOUT; exitcode 1 bij FOUT. Controleert o.a. dat de agent-UID niet 0 is en eigenaar is van elke gemounte repo, en dat de bron van elke `/workspaces/<repo>`-mount de repo-map zelf is. `REPOS` (standaard `AGENT_REPOS` uit `containerEnv`) en optioneel `CHECK_INTERNAL="host:poort …"`. |
 | `.claude/settings.json` | Rechten en sandbox voor Claude Code op de host bij werk aan deze repo (deny-regels volgen AGENTS.md). |
-| `.githooks/pre-commit` | Weigert commits met een eigen repo-keuze (`repos.conf`, repo-blok, `tst.code-workspace` anders dan `voorbeeld-repo`), `repo-root.conf` of het eigen home-pad. Activeren: `git config core.hooksPath .githooks` (B-17). |
-| `.gitignore` | Houdt `repo-root.conf`, tijdelijke bestanden van `select-repos.sh` en `*.bak-*` buiten git. |
+| `.githooks/pre-commit` | Weigert commits met de lokale/gegenereerde bestanden (`devcontainer.json`, `tst.code-workspace`, `repos.conf`, `repo-root.conf`), een sjabloon zonder `voorbeeld-repo`-blok of het eigen home-pad. Activeren: `git config core.hooksPath .githooks` (B-17). |
+| `.gitignore` | Houdt de lokale/gegenereerde bestanden, `repo-root.conf`, tijdelijke bestanden van `select-repos.sh` en `*.bak-*` buiten git. |
 
 ## 3. Isolatielagen
 
@@ -62,7 +63,7 @@ UI draait op de host; alles wat code uitvoert of bestanden leest (VS Code Server
 | Rechten | `--cap-drop=ALL`, `--security-opt=no-new-privileges`, `--pids-limit=1024`, geen sudo | `runArgs`, `Containerfile` |
 | Bestandssysteem | Alleen de repo's uit `repos.conf` gemount (gekozen en gescand door `select-repos.sh`); config buiten mounts; geen `$HOME`, `.kube`, `.ssh`, podman-socket | `workspaceMount`, `mounts` |
 | SELinux | `container_file_t` via `,z`; container draait als `container_t` doordat `podman-agent.sh` `label=disable` verwijdert | `workspaceMount`, `podman-agent.sh`, `settings.host.json` |
-| Startcontrole | `code-agent.sh` start niet buiten `~/agent-sandbox`, als root, als het agentprofiel afwijkt van `settings.host.json` (na invullen van `${HOME}`) of Dev Containers ontbreekt; `initializeCommand` weigert start/koppeling vanuit een VS Code-instantie met `SSH_AUTH_SOCK`, X11-`DISPLAY` (met `:`), `KUBECONFIG` of secret-achtige variabelen | `code-agent.sh`, `guard-host-env.sh`, `devcontainer.json` |
+| Startcontrole | `code-agent.sh` herstelt `devcontainer.json` uit het sjabloon + `repos.conf` (`select-repos.sh --regenerate`) en start niet zonder repo-keuze, buiten `~/agent-sandbox`, als root, als het agentprofiel afwijkt van `settings.host.json` (na invullen van `${HOME}`) of Dev Containers ontbreekt; `initializeCommand` weigert start/koppeling vanuit een VS Code-instantie met `SSH_AUTH_SOCK`, X11-`DISPLAY` (met `:`), `KUBECONFIG` of secret-achtige variabelen | `code-agent.sh`, `guard-host-env.sh`, `devcontainer.json` |
 | Omgeving | `env -i` bij start, alleen proxyvariabelen (`http(s)_proxy`, `no_proxy`, ook hoofdletters) gaan mee als ze gezet zijn, zonder credentials (B-15; podman geeft ze door aan pull, build en container), plus `AGENT_UID`/`AGENT_GID` voor de image-build (B-17); `remoteEnv` zet `SSH_AUTH_SOCK`, `DISPLAY`, `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`, `BROWSER` leeg (`BROWSER` wordt in de VS Code-terminal toch door de server gezet, backlog 19), `KUBECONFIG=/dev/null`, `GIT_TERMINAL_PROMPT=0`; `terminal.integrated.inheritEnv: false` | `code-agent.sh`, `setup-agent-profile.sh`, `edition.sh`, `guard-host-env.sh`, `devcontainer.json` |
 | Credentials | Geen gitconfig-kopie, git credential helper `none`, docker credential helper uit, geen agent forwarding; `git.terminalAuthentication` en `github.gitAuthentication` uit | `settings.host.json`, `devcontainer.json` |
 | Tools | Alleen benodigde tools; geen ssh, oc, kubectl, helm, ansible, vault, kubeseal, curl, wget; build faalt als er een vindbaar is | `Containerfile` |
@@ -78,7 +79,7 @@ UI draait op de host; alles wat code uitvoert of bestanden leest (VS Code Server
 | `~/<bronmap>/<eerste repo>` (standaard `~/git`, `repo-root.conf`) | `/workspaces/<eerste repo>` | `type=bind,z` (workspaceMount) |
 | `~/<bronmap>/<overige repo's>` | `/workspaces/<repo>` | `type=bind,z` (mounts) |
 
-Repo's wisselen gaat met `select-repos.sh`; het genereert het blok tussen `// BEGIN repos` en `// END repos` in `devcontainer.json` (eerste repo = `workspaceMount`, overige in `mounts`, `containerEnv.AGENT_REPOS`) en `tst.code-workspace`, en legt de keuze vast in `repos.conf`. Nooit `~/git` als geheel (B-02).
+Repo's wisselen gaat met `select-repos.sh`; het genereert uit `devcontainer.template.jsonc` de lokale `devcontainer.json` met het repo-blok (`// BEGIN repos` … `// END repos`) (eerste repo = `workspaceMount`, overige in `mounts`, `containerEnv.AGENT_REPOS`) en `tst.code-workspace`, en legt de keuze vast in `repos.conf`. Nooit `~/git` als geheel (B-02).
 
 ```bash
 ~/agent-sandbox/select-repos.sh repo-a repo-b   # keuze vastleggen (of: code-agent.sh repo-a repo-b)
@@ -114,7 +115,7 @@ Na openen, bij meerdere repo's: **File → Open Workspace from File… → `/opt
 | Agent wordt root op host | Afgedekt | rootless, geen sudo, cap-drop (`CapEff=0`), no-new-privileges (gemeten 2026-11-15) |
 | Container draait zonder SELinux-scheiding | Afgedekt (getest 2026-11-15: `container_t`) | `podman-agent.sh` verwijdert `label=disable` |
 | Container geopend vanuit gewone of verouderde VS Code (met env, ssh-agent, DISPLAY, oude instellingen) | Afgedekt (guard blokkeerde in de praktijk; test vanuit gewone VS Code nog open) | `initializeCommand` → `guard-host-env.sh`; profielcontrole in `code-agent.sh` |
-| Agent past eigen containerconfig aan | Afgedekt | config buiten mounts |
+| Agent past eigen containerconfig aan | Afgedekt (herstel getest 2026-11-17 in wegwerpkopie) | config buiten mounts; `devcontainer.json` wordt bij elke start uit het sjabloon hersteld |
 | Agent start nieuwe container met meer rechten | Afgedekt | geen podman-socket |
 | Toetsaanslagen via X11/Wayland | Afgedekt (getest 2026-11-15/16: geen sockets of mount; log: `X11 forwarding: DISPLAY not set on local host`) | geen X11-`DISPLAY` (guard blokkeert waarden met `:`), native Wayland, `mountWaylandSocket: false`, `remoteEnv` leeg |
 | Andere dev containers beïnvloeden via cachevolume | Afgedekt (getest 2026-11-15: niet gemount) | `cacheVolume: false`; volume `vscode` blijft voor andere dev containers |

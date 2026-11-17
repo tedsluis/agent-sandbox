@@ -6,3 +6,7 @@ repo-root.conf
 .repos.conf.*
 # Back-ups
 *.bak-*
+# Lokaal gegenereerd door select-repos.sh uit het sjabloon + je keuze (B-17)
+.devcontainer/devcontainer.json
+.devcontainer/tst.code-workspace
+repos.conf

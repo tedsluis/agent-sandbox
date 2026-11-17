@@ -1,21 +1,19 @@
 #!/usr/bin/env bash
-# Weigert commits met een eigen repo-keuze of persoonlijke paden (B-17).
+# Weigert commits met lokale/gegenereerde bestanden of persoonlijke paden (B-17).
 # Activeren (eenmalig per clone): git config core.hooksPath .githooks
 set -uo pipefail
 bad=0
 fail(){ echo "pre-commit: $*" >&2; bad=1; }
-staged(){ git show ":$1" 2>/dev/null; }
-r=$(staged repos.conf | grep -v '^[[:space:]]*#' | xargs)
-[ "$r" = voorbeeld-repo ] || fail "repos.conf in de index is niet het voorbeeld (gevonden: '${r:-leeg}')"
-staged .devcontainer/devcontainer.json | grep -q '"AGENT_REPOS": "voorbeeld-repo"' \
-  || fail "devcontainer.json in de index bevat een eigen repo-keuze"
-[ "$(staged .devcontainer/tst.code-workspace | grep -c '"path"')" = 1 ] \
-  && staged .devcontainer/tst.code-workspace | grep -q '"/workspaces/voorbeeld-repo"' \
-  || fail "tst.code-workspace in de index bevat een eigen repo-keuze"
-git ls-files --error-unmatch repo-root.conf >/dev/null 2>&1 && fail "repo-root.conf hoort niet in git (.gitignore)"
-git diff --cached -U0 | grep '^+' | grep -qF "$HOME" && fail "toegevoegde regels bevatten je home-pad ($HOME)"
+for f in .devcontainer/devcontainer.json .devcontainer/tst.code-workspace repos.conf repo-root.conf; do
+  git ls-files --error-unmatch "$f" >/dev/null 2>&1 && fail "$f hoort niet in git (lokaal/gegenereerd; zie .gitignore)"
+done
+# Geen grep -q in pipes: met pipefail geeft een vroeg stoppende grep SIGPIPE en dus een valse uitkomst.
+tpl=$(git show :.devcontainer/devcontainer.template.jsonc 2>/dev/null || true)
+grep -F '"AGENT_REPOS": "voorbeeld-repo"' <<<"$tpl" >/dev/null || fail "devcontainer.template.jsonc moet het voorbeeld-repo-blok houden"
+added=$(git diff --cached -U0 | grep '^+' || true)
+grep -F -- "$HOME" <<<"$added" >/dev/null && fail "toegevoegde regels bevatten je home-pad ($HOME)"
 if [ $bad = 1 ]; then
-  echo "Oplossing: ./select-repos.sh --stage-example, controleer met git diff --cached, en commit opnieuw." >&2
+  echo "Oplossing: gegenereerde/lokale bestanden uit de index halen (git rm --cached <bestand>) of persoonlijke paden verwijderen, en commit opnieuw." >&2
   exit 1
 fi
 exit 0

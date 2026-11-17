@@ -16,7 +16,7 @@ Deze repo bevat de configuratie van een geïsoleerde Dev Container voor AI-agent
   - `podman-agent.sh` (SELinux), `guard-host-env.sh` en de profielcontrole in `code-agent.sh` niet omzeilen of verzwakken.
 - Geen `--no-verify`; `core.hooksPath` en `.githooks/` niet wijzigen of omzeilen (de pre-commit hook houdt persoonlijke waarden uit de publieke repo, B-17).
 - Geen bestanden buiten `~/agent-sandbox` wijzigen. `setup-agent-profile.sh` schrijft in de agentprofielen buiten deze map: alleen de gebruiker draait dat.
-- `select-repos.sh` alleen draaien op verzoek van de gebruiker en nooit met `--force` of `--stage-example`: het schrijft `devcontainer.json`, `tst.code-workspace` en `repos.conf`, en `--stage-example` wijzigt de git-index. Weigertests mogen; een test die slaagt, verandert de configuratie. Functionele tests alleen in een wegwerpkopie met een nep-`HOME` onder `/tmp`. Het blok `// BEGIN repos … // END repos` niet met de hand aanpassen. `repo-root.conf` alleen wijzigen op verzoek van de gebruiker.
+- `select-repos.sh` alleen draaien op verzoek van de gebruiker en nooit met `--force`: het schrijft de lokale, gegenereerde `devcontainer.json`, `tst.code-workspace` en `repos.conf` (niet in git). `--regenerate` mag (herstelt alleen uit sjabloon + bestaande keuze). Weigertests mogen; een test die slaagt, verandert de configuratie. Functionele tests alleen in een wegwerpkopie met een nep-`HOME` onder `/tmp`. Configuratie wijzigen gaat in `.devcontainer/devcontainer.template.jsonc`, nooit in de gegenereerde `devcontainer.json`; het blok `// BEGIN repos … // END repos` in het sjabloon blijft `voorbeeld-repo`. `repo-root.conf` alleen wijzigen op verzoek van de gebruiker.
 
 ## Wat je wel mag
 

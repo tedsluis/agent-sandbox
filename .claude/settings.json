@@ -34,7 +34,6 @@
       "Bash(git config core.hooksPath *)",
       "Bash(*--no-verify*)",
       "Bash(*select-repos.sh*--force*)",
-      "Bash(*select-repos.sh*--stage-example*)",
       "Bash(*setup-agent-profile.sh*)"
     ],
     "ask": [

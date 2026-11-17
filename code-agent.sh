@@ -20,6 +20,9 @@ fi
 if [ ${#ARGS[@]} -gt 0 ]; then
   "$DIR/select-repos.sh" "${ARGS[@]}"
   echo "Kies na het openen: F1 → Dev Containers: Rebuild and Reopen in Container"
+else
+  # devcontainer.json is lokaal gegenereerd: altijd uit het sjabloon herstellen (B-03, B-17)
+  "$DIR/select-repos.sh" --regenerate
 fi
 echo "agent-sandbox: start VS Code $EDITION ($CODE_BIN)"
 exec env -i \
