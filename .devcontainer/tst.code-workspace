@@ -1,7 +1,6 @@
 {
   "folders": [
-    { "path": "/workspaces/genai-proxy" },
-    { "path": "/workspaces/inventory" }
+    { "path": "/workspaces/voorbeeld-repo" }
   ],
   "settings": { "chat.useAgentsMdFile": true }
 }

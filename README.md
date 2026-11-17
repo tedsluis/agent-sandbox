@@ -53,7 +53,7 @@ Een proxy-URL met gebruikersnaam/wachtwoord (`http://user:pass@…`) wordt gewei
 
 ## 2. Git-repo's kiezen
 
-De container ziet **alleen** de repo's die je kiest; elke repo uit `~/git/<repo>` verschijnt als `/workspaces/<repo>`. Nooit heel `~/git`.
+De container ziet **alleen** de repo's die je kiest; elke repo uit de bronmap (standaard `~/git`) verschijnt als `/workspaces/<repo>`. Nooit de hele bronmap.
 
 ```bash
 ~/agent-sandbox/select-repos.sh repo-a                  # één repo
@@ -70,7 +70,7 @@ Staan je repo's niet in `~/git`? Zet de bronmap, relatief aan je home directory,
 Het script **weigert** een repo als:
 
 - de naam ongeldig is (bijvoorbeeld `../x`) of de map niet bestaat;
-- het een symlink is of buiten `~/git` wijst;
+- het een symlink is of buiten de bronmap wijst;
 - het geen git-repo is (geen `.git`);
 - de naam in `repos.deny` staat;
 - er bestanden in staan die op secrets lijken (`*kubeconfig*`, `.env`, `*.pem`, ssh-keys, `.vault_pass*`, `*.kdbx`, `.git-credentials`, of credentials in een remote-URL).
@@ -112,9 +112,9 @@ Opnieuw bouwen is nodig na een wijziging in `.devcontainer/` (Containerfile, `de
    Het script start VS Code met een lege omgeving (`env -i`): geen tokens, geen ssh-agent, geen `KUBECONFIG`. Open je de map toch vanuit je gewone VS Code, dan weigert de container te starten met `agent-sandbox: … – start via ~/agent-sandbox/code-agent.sh`.
 
 2. Kies **F1 → Dev Containers: Reopen in Container**.
+   Na een wijziging (Containerfile, repo-keuze, `devcontainer.json`): **F1 → Dev Containers: Rebuild and Reopen in Container**.
 
    > **Chat pas ná deze stap.** In het venster vóór "Reopen in Container" draait Copilot nog op de host, met toegang tot je bestanden (zonder tokens of ssh-agent).
-   Na een wijziging (Containerfile, repo-keuze, `devcontainer.json`): **F1 → Dev Containers: Rebuild and Reopen in Container**.
 
 3. Bij meerdere repo's: **File → Open Workspace from File… → `/opt/tst.code-workspace`**. Copilot vindt dan per repo de `AGENTS.md`.
 
@@ -204,7 +204,15 @@ podman inspect $CID --format '{{json .Mounts}}'                                 
 
 ## Wijzigingen committen
 
-Je eigen repo-keuze (`repos.conf`, het repo-blok in `devcontainer.json`, `tst.code-workspace`) hoort niet in git. In de repo staat een neutraal voorbeeld (`voorbeeld-repo`). Zet dat vóór elke commit opnieuw in de git-index; je werkkopie blijft ongewijzigd:
+Je eigen repo-keuze (`repos.conf`, het repo-blok in `devcontainer.json`, `tst.code-workspace`) hoort niet in git. In de repo staat een neutraal voorbeeld (`voorbeeld-repo`); `repo-root.conf` staat in `.gitignore`.
+
+Zet eenmalig per clone de pre-commit hook aan. Die weigert een commit met een eigen repo-keuze, `repo-root.conf` of je home-pad:
+
+```bash
+git -C ~/agent-sandbox config core.hooksPath .githooks
+```
+
+Zet vóór elke commit het voorbeeld opnieuw in de git-index; je werkkopie blijft ongewijzigd:
 
 ```bash
 cd ~/agent-sandbox
@@ -228,5 +236,6 @@ git commit
 | `guard-host-env.sh` | Weigert starten vanuit een VS Code met tokens, ssh-agent of X11 |
 | `.devcontainer/` | Containerfile, `devcontainer.json`, workspace-bestand, `check-isolation.sh` |
 | `AGENTS.md` | Regels voor AI-agents die aan déze repo werken (op de host) |
+| `.githooks/pre-commit`, `.gitignore` | Houden je repo-keuze, `repo-root.conf` en home-pad uit git |
 
 Deze map wordt bewust **niet** in de container gemount, zodat de agent zijn eigen afscherming niet kan aanpassen.

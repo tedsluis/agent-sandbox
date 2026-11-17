@@ -50,7 +50,9 @@ UI draait op de host; alles wat code uitvoert of bestanden leest (VS Code Server
 | `repos.deny` | Repo's die `select-repos.sh` altijd weigert (nu leeg). |
 | `settings.host.json` | Sjabloon (met `${HOME}`) voor `User/settings.json` van het agentprofiel (stable: `~/.config/Code-agent`, Insiders: `~/.config/Code-Insiders-agent`); gekopieerd door `setup-agent-profile.sh`. |
 | `.devcontainer/check-isolation.sh` | Controle binnen de container; in de image als `/usr/local/bin/check-isolation` (root-eigendom). Niveaus OK/WARN/FOUT; exitcode 1 bij FOUT. Controleert o.a. dat de agent-UID niet 0 is en eigenaar is van elke gemounte repo, en dat de bron van elke `/workspaces/<repo>`-mount de repo-map zelf is. `REPOS` (standaard `AGENT_REPOS` uit `containerEnv`) en optioneel `CHECK_INTERNAL="host:poort …"`. |
-| `.claude/settings.json` | Rechten en sandbox voor Claude Code op de host bij werk aan deze repo. |
+| `.claude/settings.json` | Rechten en sandbox voor Claude Code op de host bij werk aan deze repo (deny-regels volgen AGENTS.md). |
+| `.githooks/pre-commit` | Weigert commits met een eigen repo-keuze (`repos.conf`, repo-blok, `tst.code-workspace` anders dan `voorbeeld-repo`), `repo-root.conf` of het eigen home-pad. Activeren: `git config core.hooksPath .githooks` (B-17). |
+| `.gitignore` | Houdt `repo-root.conf`, tijdelijke bestanden van `select-repos.sh` en `*.bak-*` buiten git. |
 
 ## 3. Isolatielagen
 
@@ -114,7 +116,7 @@ Na openen, bij meerdere repo's: **File → Open Workspace from File… → `/opt
 | Container geopend vanuit gewone of verouderde VS Code (met env, ssh-agent, DISPLAY, oude instellingen) | Afgedekt (guard blokkeerde in de praktijk; test vanuit gewone VS Code nog open) | `initializeCommand` → `guard-host-env.sh`; profielcontrole in `code-agent.sh` |
 | Agent past eigen containerconfig aan | Afgedekt | config buiten mounts |
 | Agent start nieuwe container met meer rechten | Afgedekt | geen podman-socket |
-| Toetsaanslagen via X11/Wayland | Afgedekt (getest 2026-11-15: geen sockets/mount; log nog nalopen) | geen X11-`DISPLAY` (guard blokkeert waarden met `:`), native Wayland, `mountWaylandSocket: false`, `remoteEnv` leeg |
+| Toetsaanslagen via X11/Wayland | Afgedekt (getest 2026-11-15/16: geen sockets of mount; log: `X11 forwarding: DISPLAY not set on local host`) | geen X11-`DISPLAY` (guard blokkeert waarden met `:`), native Wayland, `mountWaylandSocket: false`, `remoteEnv` leeg |
 | Andere dev containers beïnvloeden via cachevolume | Afgedekt (getest 2026-11-15: niet gemount) | `cacheVolume: false`; volume `vscode` blijft voor andere dev containers |
 | Agent leest andere repo's in `~/git` | Afgedekt (getest 2026-11-15 met twee verschillende keuzes) | alleen repo's uit `repos.conf` gemount; `check-isolation` vergelijkt met `AGENT_REPOS` |
 | Gekozen repo bevat secrets (kubeconfig, `.env`, keys) | Beperkt | `select-repos.sh` scant en weigert, tenzij bewust `--force` |
@@ -129,14 +131,17 @@ Na openen, bij meerdere repo's: **File → Open Workspace from File… → `/opt
 | Agent maakt lokale commits | Geaccepteerd (te herzien) | geen push mogelijk; backlog 10 |
 | Kwaadaardige inhoud in repo (prompt injection via AGENTS.md e.d.) | Beperkt | impact begrensd door bovenstaande lagen |
 
-## 7. Bekende versies (laatste test: Insiders, 2026-11-16)
+## 7. Bekende versies (per werkplek)
+
+| Component | Werkplek zonder proxy (2026-11-16) | Werkplek met proxy (tests 2026-11-16) |
+|---|---|---|
+| Fedora / kernel | 45 / 7.3.3-300.fc45 | 45 / 7.2.15-300.fc45 |
+| VS Code stable | 1.146.0 (commit 69047191), Copilot Chat 0.74.0 ingebouwd (end-to-end nog toetsen, backlog 22) | niet vastgelegd |
+| VS Code Insiders | 1.147.0-insider (commit d8e7b56c), Copilot Chat 0.75.2026111203 ingebouwd | 1.146.0-insider (commit 6605820e), Copilot Chat ingebouwd |
 
 | Component | Versie |
 |---|---|
-| Fedora (host) | 45 (kernel in log: 7.2.15-300.fc45) |
 | podman / buildah | 6.1.4 / 1.45.2 |
-| VS Code stable | 1.146.0 (commit 69047191), Copilot Chat 0.74.0 ingebouwd (end-to-end nog toetsen, backlog 22) |
-| VS Code Insiders | 1.146.0-insider (commit 6605820e), Copilot Chat ingebouwd (versie niet opnieuw vastgelegd) |
 | Dev Containers-extensie | 0.474.0 (devcontainers CLI 0.90.0) |
 | Base images | `registry.fedoraproject.org/fedora:45`, `fedora-minimal:45` |
 | kustomize | 5.7.1 |

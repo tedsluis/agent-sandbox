@@ -22,11 +22,25 @@
       "Bash(podman volume rm *)",
       "Bash(podman system *)",
       "Bash(restorecon *)",
-      "Bash(chcon *)"
+      "Bash(chcon *)",
+      "Bash(ansible *)",
+      "Bash(ansible-playbook *)",
+      "Bash(helm install *)",
+      "Bash(helm upgrade *)",
+      "Bash(vault *)",
+      "Bash(kubeseal *)",
+      "Bash(git update-index *)",
+      "Bash(git filter-repo *)",
+      "Bash(git config core.hooksPath *)",
+      "Bash(*--no-verify*)",
+      "Bash(*select-repos.sh*--force*)",
+      "Bash(*select-repos.sh*--stage-example*)",
+      "Bash(*setup-agent-profile.sh*)"
     ],
     "ask": [
       "Bash(podman build *)",
-      "Bash(podman run *)"
+      "Bash(podman run *)",
+      "Bash(podman exec *)"
     ],
     "allow": [
       "Bash(git status *)",
@@ -43,7 +57,13 @@
     "enabled": true,
     "allowUnsandboxedCommands": false,
     "filesystem": {
-      "denyRead": ["~/.ssh", "~/.kube", "~/.gnupg", "~/.config/containers", "~/.local/share/keyrings"]
+      "denyRead": [
+        "~/.ssh",
+        "~/.kube",
+        "~/.gnupg",
+        "~/.config/containers",
+        "~/.local/share/keyrings"
+      ]
     }
   }
 }

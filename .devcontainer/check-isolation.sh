@@ -70,7 +70,7 @@ for d in / /etc /usr /usr/local/bin /opt /var /run; do [ -w "$d" ] && found="$fo
 [ -n "${REMOTE_CONTAINERS_IPC:-}" ] && wrn "REMOTE_CONTAINERS_IPC (Dev Containers-IPC naar host)"
 ls -d /tmp/mcp-* >/dev/null 2>&1 && wrn "MCP-socket(s) in /tmp"
 
-# --- Netwerk (bekend open, backlog 4)
+# --- Netwerk (geaccepteerd, B-16)
 for p in 22 80 443 631 5432 6443 8080 9090; do
   timeout 2 bash -c "</dev/tcp/host.containers.internal/$p" 2>/dev/null && wrn "host.containers.internal:$p bereikbaar"; done
 timeout 3 bash -c '</dev/tcp/1.1.1.1/443' 2>/dev/null && wrn "internet bereikbaar (egress open)"

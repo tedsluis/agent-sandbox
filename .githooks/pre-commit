@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Weigert commits met een eigen repo-keuze of persoonlijke paden (B-17).
+# Activeren (eenmalig per clone): git config core.hooksPath .githooks
+set -uo pipefail
+bad=0
+fail(){ echo "pre-commit: $*" >&2; bad=1; }
+staged(){ git show ":$1" 2>/dev/null; }
+r=$(staged repos.conf | grep -v '^[[:space:]]*#' | xargs)
+[ "$r" = voorbeeld-repo ] || fail "repos.conf in de index is niet het voorbeeld (gevonden: '${r:-leeg}')"
+staged .devcontainer/devcontainer.json | grep -q '"AGENT_REPOS": "voorbeeld-repo"' \
+  || fail "devcontainer.json in de index bevat een eigen repo-keuze"
+[ "$(staged .devcontainer/tst.code-workspace | grep -c '"path"')" = 1 ] \
+  && staged .devcontainer/tst.code-workspace | grep -q '"/workspaces/voorbeeld-repo"' \
+  || fail "tst.code-workspace in de index bevat een eigen repo-keuze"
+git ls-files --error-unmatch repo-root.conf >/dev/null 2>&1 && fail "repo-root.conf hoort niet in git (.gitignore)"
+git diff --cached -U0 | grep '^+' | grep -qF "$HOME" && fail "toegevoegde regels bevatten je home-pad ($HOME)"
+if [ $bad = 1 ]; then
+  echo "Oplossing: ./select-repos.sh --stage-example, controleer met git diff --cached, en commit opnieuw." >&2
+  exit 1
+fi
+exit 0

@@ -1,0 +1,8 @@
+# Persoonlijke instelling (B-17)
+repo-root.conf
+# Tijdelijke bestanden van select-repos.sh
+.devcontainer/.devcontainer.json.*
+.devcontainer/.tst.code-workspace.*
+.repos.conf.*
+# Back-ups
+*.bak-*

@@ -11,12 +11,10 @@
   // Alleen de repo's uit repos.conf (kiezen met select-repos.sh; bronmap uit repo-root.conf, standaard ~/git), niet de bronmap als geheel en niet je home directory.
   // ",z" = gedeelde SELinux-label (container_file_t), zodat de host en de container erbij kunnen.
   // BEGIN repos (gegenereerd door select-repos.sh – niet met de hand aanpassen)
-  "workspaceMount": "source=${localEnv:HOME}/git/genai-proxy,target=/workspaces/genai-proxy,type=bind,z",
-  "mounts": [
-    "source=${localEnv:HOME}/git/inventory,target=/workspaces/inventory,type=bind,z"
-  ],
-  "workspaceFolder": "/workspaces",
-  "containerEnv": { "AGENT_REPOS": "genai-proxy inventory" },
+  "workspaceMount": "source=${localEnv:HOME}/git/voorbeeld-repo,target=/workspaces/voorbeeld-repo,type=bind,z",
+  "mounts": [],
+  "workspaceFolder": "/workspaces/voorbeeld-repo",
+  "containerEnv": { "AGENT_REPOS": "voorbeeld-repo" },
   // END repos
 
   // Draait op de HOST vóór elke start/koppeling: weigert als VS Code niet via code-agent.sh (env -i) is gestart.
